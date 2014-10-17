@@ -1,35 +1,29 @@
 package main
 
 import (
-	"encoding/json"
-	"github.com/boltdb/bolt"
-	//"io"
+	"flag"
+	"fmt"
+	"github.com/syndtr/goleveldb/leveldb"
 	"io/ioutil"
 	"log"
 	"net/http"
-	//"net/url"
-	"os"
+	"runtime"
 	"strconv"
 	"time"
 )
 
-var db *bolt.DB
+var db *leveldb.DB
+var default_maxqueue, keepalive, readtimeout, writetimeout *int
+var ip, port, default_auth, dbpath *string
+var verbose *bool
 
 func httpmq_read_maxqueue(name string) int {
 	queue_name := name + ".maxqueue"
-	var tmp string
-	db.View(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte(name))
-		if b != nil {
-			data := b.Get([]byte(queue_name))
-			tmp = string(data)
-		}
-		return nil
-	})
+	data, _ := db.Get([]byte(queue_name), nil)
 
-	maxqueue, _ := strconv.Atoi(tmp)
+	maxqueue, _ := strconv.Atoi(string(data))
 	if maxqueue == 0 {
-		maxqueue = 10000
+		maxqueue = *default_maxqueue
 	}
 	log.Println("httpmq_read_maxqueue:", maxqueue)
 	return maxqueue
@@ -37,30 +31,18 @@ func httpmq_read_maxqueue(name string) int {
 
 func httpmq_read_putpos(name string) int {
 	queue_name := name + ".putpos"
-	var tmp string
-	db.View(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte(name))
-		data := b.Get([]byte(queue_name))
-		tmp = string(data)
-		return nil
-	})
+	data, _ := db.Get([]byte(queue_name), nil)
 
-	putpos, _ := strconv.Atoi(tmp)
+	putpos, _ := strconv.Atoi(string(data))
 	log.Println("httpmq_read_putpos:", putpos)
 	return putpos
 }
 
 func httpmq_read_getpos(name string) int {
 	queue_name := name + ".getpos"
-	var tmp string
-	db.View(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte(name))
-		data := b.Get([]byte(queue_name))
-		tmp = string(data)
-		return nil
-	})
+	data, _ := db.Get([]byte(queue_name), nil)
 
-	getpos, _ := strconv.Atoi(tmp)
+	getpos, _ := strconv.Atoi(string(data))
 	log.Println("httpmq_read_getpos:", getpos)
 	return getpos
 }
@@ -73,32 +55,16 @@ func httpmq_now_getpos(name string) int {
 	queue_name := name + ".getpos"
 	if getpos == 0 && putpos > 0 {
 		getpos = 1
-		db.Update(func(tx *bolt.Tx) error {
-			b := tx.Bucket([]byte(name))
-			err := b.Put([]byte(queue_name), []byte("1"))
-			return err
-		})
+		db.Put([]byte(queue_name), []byte("1"), nil)
 	} else if getpos < putpos {
 		getpos++
-		db.Update(func(tx *bolt.Tx) error {
-			b := tx.Bucket([]byte(name))
-			err := b.Put([]byte(queue_name), []byte(strconv.Itoa(getpos)))
-			return err
-		})
+		db.Put([]byte(queue_name), []byte(strconv.Itoa(getpos)), nil)
 	} else if getpos > putpos && getpos < maxqueue {
 		getpos++
-		db.Update(func(tx *bolt.Tx) error {
-			b := tx.Bucket([]byte(name))
-			err := b.Put([]byte(queue_name), []byte(strconv.Itoa(getpos)))
-			return err
-		})
+		db.Put([]byte(queue_name), []byte(strconv.Itoa(getpos)), nil)
 	} else if getpos > putpos && getpos == maxqueue {
 		getpos = 1
-		db.Update(func(tx *bolt.Tx) error {
-			b := tx.Bucket([]byte(name))
-			err := b.Put([]byte(queue_name), []byte("1"))
-			return err
-		})
+		db.Put([]byte(queue_name), []byte("1"), nil)
 	} else {
 		getpos = 0
 	}
@@ -120,59 +86,45 @@ func httpmq_now_putpos(name string) int {
 		putpos = 0
 	} else if getpos <= 1 && putpos > maxqueue {
 		putpos = 1
-		db.Update(func(tx *bolt.Tx) error {
-			b := tx.Bucket([]byte(name))
-			err := b.Put([]byte(queue_name), []byte("1"))
-			return err
-		})
+		db.Put([]byte(queue_name), []byte("1"), nil)
+
 	} else {
-		db.Update(func(tx *bolt.Tx) error {
-			b := tx.Bucket([]byte(name))
-			err := b.Put([]byte(queue_name), []byte(strconv.Itoa(putpos)))
-			return err
-		})
+		db.Put([]byte(queue_name), []byte(strconv.Itoa(putpos)), nil)
 	}
 	log.Println("httpmq_now_putpos:", putpos)
 	return putpos
 }
 
 func main() {
+	default_maxqueue = flag.Int("maxqueue", 100000, "the max queue length")
+	readtimeout = flag.Int("readtimeout", 15, "read timeout for an http request")
+	writetimeout = flag.Int("writetimeout", 15, "write timeout for an http request")
+	ip = flag.String("ip", "0.0.0.0", "ip address to listen on")
+	port = flag.String("port", "1218", "port to listen on")
+	default_auth = flag.String("auth", "", "auth password to access httpmq")
+	dbpath = flag.String("db", "level.db", "database path")
+	verbose = flag.Bool("verbose", false, "output log")
+	flag.Parse()
+
 	var err error
-	db, err = bolt.Open("test.db", 0600, nil)
+	db, err = leveldb.OpenFile(*dbpath, nil)
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer db.Close()
 
-	go func() {
-		// Grab the initial stats.
-		prev := db.Stats()
-
-		for {
-			// Wait for 10s.
-			time.Sleep(100 * time.Second)
-
-			// Grab the current stats and diff them.
-			stats := db.Stats()
-			diff := stats.Sub(&prev)
-
-			// Encode stats to JSON and print to STDERR.
-			json.NewEncoder(os.Stderr).Encode(diff)
-
-			// Save stats for the next loop.
-			prev = stats
-		}
-	}()
-
-	log.SetOutput(ioutil.Discard)
+	if *verbose == false {
+		log.SetOutput(ioutil.Discard)
+	}
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 
-		//auth := r.FormValue("auth")
+		auth := r.FormValue("auth")
 		name := r.FormValue("name")
 		charset := r.FormValue("charset")
 		opt := r.FormValue("opt")
 		data := r.FormValue("data")
+		pos := r.FormValue("pos")
 
 		w.Header().Set("Connection", "keep-alive")
 		w.Header().Set("Cache-Control", "no-cache")
@@ -183,20 +135,15 @@ func main() {
 			w.Header().Set("Content-type", "text/plain")
 		}
 
+		if *default_auth != "" && *default_auth != auth {
+			w.Write([]byte("HTTPMQ_AUTH_FAILED"))
+			return
+		}
+
 		if len(name) == 0 && len(opt) == 0 {
 			w.Write([]byte("HTTPMQ_ERROR"))
 			return
 		}
-
-		db.Update(func(tx *bolt.Tx) error {
-			_, err := tx.CreateBucketIfNotExists([]byte(name))
-			if err != nil {
-				log.Println("create bucket: ", err)
-				return err
-			}
-
-			return nil
-		})
 
 		if opt == "put" {
 			putpos := httpmq_now_putpos(name)
@@ -209,35 +156,21 @@ func main() {
 
 				if putpos > 0 {
 
-					db.Update(func(tx *bolt.Tx) error {
-						b := tx.Bucket([]byte(name))
-
-						err = b.Put([]byte(queue_name), []byte(buf))
-						w.Write([]byte("HTTPMQ_PUT_OK"))
-						return nil
-					})
+					db.Put([]byte(queue_name), []byte(buf), nil)
+					w.Write([]byte("HTTPMQ_PUT_OK"))
 				} else {
 					w.Write([]byte("HTTPMQ_PUT_END"))
-					return
 				}
 			} else {
 				log.Println("data:", data)
 
 				if putpos > 0 {
-					db.Update(func(tx *bolt.Tx) error {
-						b := tx.Bucket([]byte(name))
-
-						err = b.Put([]byte(queue_name), []byte(data))
-						w.Write([]byte("HTTPMQ_PUT_OK"))
-						return nil
-					})
+					db.Put([]byte(queue_name), []byte(data), nil)
+					w.Write([]byte("HTTPMQ_PUT_OK"))
 				} else {
 					w.Write([]byte("HTTPMQ_PUT_END"))
-					return
 				}
 			}
-
-			return
 		} else if opt == "get" {
 
 			getpos := httpmq_now_getpos(name)
@@ -246,27 +179,78 @@ func main() {
 			} else {
 				queue_name := name + strconv.Itoa(getpos)
 				log.Println("get queue name:", queue_name)
-				db.View(func(tx *bolt.Tx) error {
-
-					b := tx.Bucket([]byte(name))
-					v := b.Get([]byte(queue_name))
-					if v != nil {
-						w.Write(v)
-					} else {
-						w.Write([]byte("HTTPMQ_GET_END"))
-					}
-					return nil
-				})
+				v, _ := db.Get([]byte(queue_name), nil)
+				if v != nil {
+					w.Write(v)
+				} else {
+					w.Write([]byte("HTTPMQ_GET_END"))
+				}
 			}
 
+		} else if opt == "status" {
+			getpos := httpmq_read_getpos(name)
+			putpos := httpmq_read_putpos(name)
+			maxqueue := httpmq_read_maxqueue(name)
+			var ungetnum int
+			var put_times, get_times string
+			if putpos > getpos {
+				ungetnum = putpos - getpos
+				put_times = "1st lap"
+				get_times = "1st lap"
+			} else if putpos < getpos {
+				ungetnum = maxqueue - getpos + putpos
+				put_times = "2nd lap"
+				get_times = "1st lap"
+			}
+			buf := "HTTP message queue\n"
+			buf += "-------------------\n"
+			buf += fmt.Sprintf("Queue Name: %s\n", name)
+			buf += fmt.Sprintf("Maximun number of queues: %d\n", maxqueue)
+			buf += fmt.Sprintf("Put position of queue (%s): %d\n", put_times, putpos)
+			buf += fmt.Sprintf("Get position of queue (%s): %d\n", get_times, getpos)
+			buf += fmt.Sprintf("Number of unread queue: %d\n\n", ungetnum)
+
+			m := &runtime.MemStats{}
+			runtime.ReadMemStats(m)
+
+			buf += "Go runtime status\n"
+			buf += "-------------------\n"
+			buf += fmt.Sprintf("NumGoroutine: %d\n", runtime.NumGoroutine())
+			buf += fmt.Sprintf("Memory Acquired: %d\n", m.Sys)
+			buf += fmt.Sprintf("Memory Used: %d\n", m.Alloc)
+			buf += fmt.Sprintf("EnableGc: %t\n", m.EnableGC)
+			buf += fmt.Sprintf("NumGc: %d\n", m.NumGC)
+
+			lastgc := time.Unix(0, int64(m.LastGC))
+
+			buf += fmt.Sprintf("Pause Ns: %s\n", time.Nanosecond*time.Duration(m.PauseTotalNs))
+			buf += fmt.Sprintf("Last Gc: %s\n\n", lastgc.Format("Mon Jan 2 15:04:05 -0700 MST 2006"))
+
+			value, _ := db.GetProperty("leveldb.stats")
+			buf += "Leveldb status\n"
+			buf += value + "\n"
+
+			w.Write([]byte(buf))
+		} else if opt == "view" {
+			v, _ := db.Get([]byte(name+pos), nil)
+			if v != nil {
+				w.Write([]byte(v))
+			} else {
+				w.Write([]byte("HTTPMQ_VIEW_ERROR"))
+			}
+		} else if opt == "reset" {
+			db.Put([]byte(name+".putpos"), []byte(""), nil)
+			db.Put([]byte(name+".getpos"), []byte(""), nil)
+			db.Put([]byte(name+".maxqueue"), []byte(""), nil)
+			w.Write([]byte("HTTPMQ_RESET_OK"))
 		}
 
 	})
 
 	s := &http.Server{
-		Addr:           ":9001",
-		ReadTimeout:    15 * time.Second,
-		WriteTimeout:   15 * time.Second,
+		Addr:           *ip + ":" + *port,
+		ReadTimeout:    time.Duration(*readtimeout) * time.Second,
+		WriteTimeout:   time.Duration(*writetimeout) * time.Second,
 		MaxHeaderBytes: 1 << 20,
 	}
 
