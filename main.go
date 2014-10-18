@@ -4,6 +4,8 @@ import (
 	"flag"
 	"fmt"
 	"github.com/syndtr/goleveldb/leveldb"
+	"github.com/syndtr/goleveldb/leveldb/cache"
+	"github.com/syndtr/goleveldb/leveldb/opt"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -13,7 +15,7 @@ import (
 )
 
 var db *leveldb.DB
-var default_maxqueue, keepalive, readtimeout, writetimeout *int
+var default_maxqueue, cacheSize, writeBuffer, keepalive, readtimeout, writetimeout *int
 var ip, port, default_auth, dbpath *string
 var verbose *bool
 
@@ -96,18 +98,22 @@ func httpmq_now_putpos(name string) int {
 }
 
 func main() {
-	default_maxqueue = flag.Int("maxqueue", 100000, "the max queue length")
+	default_maxqueue = flag.Int("maxqueue", 1000000, "the max queue length")
 	readtimeout = flag.Int("readtimeout", 15, "read timeout for an http request")
 	writetimeout = flag.Int("writetimeout", 15, "write timeout for an http request")
 	ip = flag.String("ip", "0.0.0.0", "ip address to listen on")
 	port = flag.String("port", "1218", "port to listen on")
 	default_auth = flag.String("auth", "", "auth password to access httpmq")
 	dbpath = flag.String("db", "level.db", "database path")
-	verbose = flag.Bool("verbose", false, "output log")
+	cacheSize = flag.Int("cache", 8, "cache size(MB)")
+	writeBuffer = flag.Int("buffer", 4, "write buffer(MB)")
+	verbose = flag.Bool("verbose", true, "output log")
 	flag.Parse()
 
 	var err error
-	db, err = leveldb.OpenFile(*dbpath, nil)
+	ca := cache.NewLRUCache(*cacheSize * 1024 * 1024)
+	db, err = leveldb.OpenFile(*dbpath, &opt.Options{BlockCache: ca,
+		WriteBuffer: *writeBuffer * 1024 * 1024})
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -118,12 +124,23 @@ func main() {
 	}
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-
+		var data string
+		var buf []byte
 		auth := r.FormValue("auth")
 		name := r.FormValue("name")
 		charset := r.FormValue("charset")
 		opt := r.FormValue("opt")
-		data := r.FormValue("data")
+		if r.Method == "GET" {
+			data = r.FormValue("data")
+		} else if r.Method == "POST" {
+			if r.Header.Get("Content-Type") == "application/x-www-form-urlencoded" {
+				data = r.PostFormValue("data")
+			} else {
+				buf, err = ioutil.ReadAll(r.Body)
+				r.Body.Close()
+			}
+		}
+
 		pos := r.FormValue("pos")
 
 		w.Header().Set("Connection", "keep-alive")
@@ -147,25 +164,33 @@ func main() {
 
 		if opt == "put" {
 			putpos := httpmq_now_putpos(name)
-			buf, _ := ioutil.ReadAll(r.Body)
 			queue_name := name + strconv.Itoa(putpos)
-			log.Println("put queue name:", queue_name)
-
-			if len(buf) > 0 {
-				log.Println("buf:", string(buf))
+			if r.Method == "POST" {
+				log.Println("put queue name:", queue_name)
 
 				if putpos > 0 {
-
-					db.Put([]byte(queue_name), []byte(buf), nil)
+					if data != "" {
+						db.Put([]byte(queue_name), []byte(data), nil)
+					} else if len(buf) > 0 {
+						db.Put([]byte(queue_name), buf, nil)
+					} else {
+						w.Write([]byte("HTTPMQ_PUT_ERROR"))
+						return
+					}
 					w.Write([]byte("HTTPMQ_PUT_OK"))
 				} else {
 					w.Write([]byte("HTTPMQ_PUT_END"))
 				}
-			} else {
+			} else if r.Method == "GET" {
 				log.Println("data:", data)
 
 				if putpos > 0 {
-					db.Put([]byte(queue_name), []byte(data), nil)
+					if data != "" {
+						db.Put([]byte(queue_name), []byte(data), nil)
+					} else {
+						w.Write([]byte("HTTPMQ_PUT_ERROR"))
+						return
+					}
 					w.Write([]byte("HTTPMQ_PUT_OK"))
 				} else {
 					w.Write([]byte("HTTPMQ_PUT_END"))
@@ -228,6 +253,7 @@ func main() {
 
 			value, _ := db.GetProperty("leveldb.stats")
 			buf += "Leveldb status\n"
+			buf += "-------------------\n"
 			buf += value + "\n"
 
 			w.Write([]byte(buf))
