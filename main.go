@@ -17,7 +17,7 @@ import (
 )
 
 var db *leveldb.DB
-var default_maxqueue, cacheSize, writeBuffer, keepalive, readtimeout, writetimeout *int
+var default_maxqueue, cpu, cacheSize, writeBuffer, keepalive, readtimeout, writetimeout *int
 var ip, port, default_auth, dbpath *string
 var verbose *bool
 var mu sync.Mutex
@@ -95,6 +95,7 @@ func main() {
 	dbpath = flag.String("db", "level.db", "database path")
 	cacheSize = flag.Int("cache", 8, "cache size(MB)")
 	writeBuffer = flag.Int("buffer", 4, "write buffer(MB)")
+	cpu = flag.Int("cpu", 1, "cpu number for httpmq")
 	verbose = flag.Bool("verbose", true, "output log")
 	flag.Parse()
 
@@ -111,7 +112,7 @@ func main() {
 		log.SetOutput(ioutil.Discard)
 	}
 
-	runtime.GOMAXPROCS(runtime.NumCPU())
+	runtime.GOMAXPROCS(1)
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		var data string
