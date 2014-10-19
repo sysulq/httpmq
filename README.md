@@ -50,9 +50,6 @@ Usage
   ```
   curl "http://host:port/?charset=utf-8&name=your_queue_name&opt=get&auth=mypass123"
   ```
-  ```
-  curl "http://host:port/?charset=gb2312&name=your_queue_name&opt=get&auth=mypass123"
-  ```
 
 3. View queue status
 
