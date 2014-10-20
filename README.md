@@ -91,7 +91,6 @@ Test machine:
 
 ###PUT queue:
 
-    ```
     ab -k -c 1000 -n 10000 "http://127.0.0.1:1218/?name=xoyo&opt=put&data=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
     This is ApacheBench, Version 2.3 <$Revision: 655654 $>
     Copyright 1996 Adam Twiss, Zeus Technology Ltd, http://www.zeustech.net/
@@ -148,11 +147,9 @@ Test machine:
       98%    272
       99%    310
      100%    473 (longest request)
-    ```
 
 ###GET queue:
 
-    ```
     ab -k -c 1000 -n 10000 "http://127.0.0.1:1218/?name=xoyo&opt=get"                                                                                                   [system]
     This is ApacheBench, Version 2.3 <$Revision: 655654 $>
     Copyright 1996 Adam Twiss, Zeus Technology Ltd, http://www.zeustech.net/
@@ -209,4 +206,3 @@ Test machine:
       98%    224
       99%    240
      100%    471 (longest request)
-    ```
