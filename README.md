@@ -6,15 +6,15 @@ This program is a simple HTTP message queue written in Go with gdleveldb, just l
 Feature
 ======
 
-* Very simple
-* Very fast, more than 10000 requests/sec
+* Very simple, less than 300 lines Go code.
+* Very fast, more than 10000 requests/sec.
 * High concurrency, support the tens of thousands of concurrent connections.
-* Multiple queue
+* Multiple queue.
 * Low memory consumption, mass data storage, storage dozens of GB of data takes less than 100MB of physical memory buffer.
 * Convenient to change the maximum queue length of per-queue.
-* Queue status view
+* Queue status view.
 * Be able to view the contents of the specified queue ID.
-* Multi-Character encoding support
+* Multi-Character encoding support.
 
 Usage
 ======
