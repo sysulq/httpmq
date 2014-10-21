@@ -41,8 +41,10 @@ var ip, port, default_auth, dbpath *string
 var verbose *bool
 
 // httpmq read metadata api
-// retrieve from leveldb and split with ","
-// [name.metadata - maxqueue,putpos,getpos]
+// retrieve from leveldb
+// name.maxqueue - maxqueue
+// name.putpos - putpos
+// name.getpos - getpos
 func httpmq_read_metadata(name string) []string {
 	maxqueue := name + ".maxqueue"
 	data1, _ := db.Get([]byte(maxqueue), nil)
@@ -58,7 +60,6 @@ func httpmq_read_metadata(name string) []string {
 
 // httpmq now getpos api
 // get the current getpos of httpmq for request
-// should be atomic with sync.Mutex
 func httpmq_now_getpos(name string) string {
 	metadata := httpmq_read_metadata(name)
 	maxqueue, _ := strconv.Atoi(metadata[0])
@@ -84,7 +85,6 @@ func httpmq_now_getpos(name string) string {
 
 // httpmq now putpos api
 // get the current putpos of httpmq for request
-// should be atomic with sync.Mutex
 func httpmq_now_putpos(name string) string {
 	metadata := httpmq_read_metadata(name)
 	maxqueue, _ := strconv.Atoi(metadata[0])
@@ -129,7 +129,7 @@ func main() {
 	}
 
 	runtime.GOMAXPROCS(*cpu)
-	option := &opt.WriteOptions{Sync: true}
+	sync := &opt.WriteOptions{Sync: true}
 
 	putnamechan := make(chan string, 100)
 	putposchan := make(chan string, 100)
@@ -261,14 +261,14 @@ func main() {
 			}
 		} else if opt == "reset" {
 			maxqueue := strconv.Itoa(*default_maxqueue)
-			db.Put([]byte(name+".maxqueue"), []byte(maxqueue), option)
-			db.Put([]byte(name+".putpos"), []byte("0"), option)
-			db.Put([]byte(name+".getpos"), []byte("0"), option)
+			db.Put([]byte(name+".maxqueue"), []byte(maxqueue), sync)
+			db.Put([]byte(name+".putpos"), []byte("0"), sync)
+			db.Put([]byte(name+".getpos"), []byte("0"), sync)
 			w.Write([]byte("HTTPMQ_RESET_OK"))
 		} else if opt == "maxqueue" {
 			maxqueue, _ := strconv.Atoi(num)
 			if maxqueue > 0 && maxqueue <= 10000000 {
-				db.Put([]byte(name+".maxqueue"), []byte(num), option)
+				db.Put([]byte(name+".maxqueue"), []byte(num), sync)
 				w.Write([]byte("HTTPMQ_MAXQUEUE_OK"))
 			} else {
 				w.Write([]byte("HTTPMQ_MAXQUEUE_CANCLE"))
