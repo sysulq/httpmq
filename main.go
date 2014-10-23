@@ -243,10 +243,10 @@ func main() {
 				get_times = "1st lap"
 			}
 
-			buf := fmt.Sprintf("HTTP message queue v%s\n", VERSION)
-			buf += fmt.Sprintf("-----------------------\n")
+			buf := fmt.Sprintf("HTTP Simple Queue Service v%s\n", VERSION)
+			buf += fmt.Sprintf("------------------------------\n")
 			buf += fmt.Sprintf("Queue Name: %s\n", name)
-			buf += fmt.Sprintf("Maximun number of queues: %d\n", maxqueue)
+			buf += fmt.Sprintf("Maximum number of queues: %d\n", maxqueue)
 			buf += fmt.Sprintf("Put position of queue (%s): %d\n", put_times, putpos)
 			buf += fmt.Sprintf("Get position of queue (%s): %d\n", get_times, getpos)
 			buf += fmt.Sprintf("Number of unread queue: %g\n\n", ungetnum)
