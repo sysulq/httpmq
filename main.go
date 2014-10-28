@@ -29,14 +29,13 @@ import (
 	_ "net/http/pprof"
 	"runtime"
 	"strconv"
-	"time"
 )
 
 // httpmq version
 const VERSION = "0.1"
 
 var db *leveldb.DB
-var default_maxqueue, cpu, cacheSize, writeBuffer, keepalive, readtimeout, writetimeout *int
+var default_maxqueue, cpu, cacheSize, writeBuffer *int
 var ip, port, default_auth, dbpath *string
 var verbose *bool
 
@@ -109,8 +108,6 @@ func httpmq_now_putpos(name string) string {
 
 func main() {
 	default_maxqueue = flag.Int("maxqueue", 1000000, "the max queue length")
-	readtimeout = flag.Int("readtimeout", 10, "read timeout for an http request")
-	writetimeout = flag.Int("writetimeout", 10, "write timeout for an http request")
 	ip = flag.String("ip", "0.0.0.0", "ip address to listen on")
 	port = flag.String("port", "1218", "port to listen on")
 	default_auth = flag.String("auth", "", "auth password to access httpmq")
@@ -276,12 +273,5 @@ func main() {
 		}
 	})
 
-	s := &http.Server{
-		Addr:           *ip + ":" + *port,
-		ReadTimeout:    time.Duration(*readtimeout) * time.Second,
-		WriteTimeout:   time.Duration(*writetimeout) * time.Second,
-		MaxHeaderBytes: 1 << 20,
-	}
-
-	log.Fatal(s.ListenAndServe())
+	log.Fatal(http.ListenAndServe(*ip+":"+*port, nil))
 }
