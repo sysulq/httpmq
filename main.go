@@ -175,7 +175,7 @@ func main() {
 			}
 		}
 
-		if len(name) == 0 || len(opt) == 0 || (len(data) == 0 && len(buf) == 0) {
+		if len(name) == 0 || len(opt) == 0 {
 			w.Write([]byte("HTTPMQ_ERROR"))
 			return
 		}
@@ -188,6 +188,11 @@ func main() {
 		}
 
 		if opt == "put" {
+			if len(data) == 0 && len(buf) == 0 {
+				w.Write([]byte("HTTPMQ_PUT_ERROR"))
+				return
+			}
+
 			putnamechan <- name
 			putpos := <-putposchan
 
@@ -197,9 +202,6 @@ func main() {
 					db.Put([]byte(queue_name), []byte(data), nil)
 				} else if len(buf) > 0 {
 					db.Put([]byte(queue_name), buf, nil)
-				} else {
-					w.Write([]byte("HTTPMQ_PUT_ERROR"))
-					return
 				}
 				w.Header().Set("Pos", putpos)
 				w.Write([]byte("HTTPMQ_PUT_OK"))
@@ -219,7 +221,7 @@ func main() {
 					w.Header().Set("Pos", getpos)
 					w.Write(v)
 				} else {
-					w.Write([]byte("HTTPMQ_GET_END"))
+					w.Write([]byte("HTTPMQ_GET_ERROR"))
 				}
 			}
 		} else if opt == "status" {
