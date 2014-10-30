@@ -164,11 +164,6 @@ func main() {
 			return
 		}
 
-		if len(name) == 0 && len(opt) == 0 {
-			w.Write([]byte("HTTPMQ_ERROR"))
-			return
-		}
-
 		if r.Method == "GET" {
 			data = r.FormValue("data")
 		} else if r.Method == "POST" {
@@ -178,6 +173,11 @@ func main() {
 				buf, _ = ioutil.ReadAll(r.Body)
 				r.Body.Close()
 			}
+		}
+
+		if len(name) == 0 || len(opt) == 0 || (len(data) == 0 && len(buf) == 0) {
+			w.Write([]byte("HTTPMQ_ERROR"))
+			return
 		}
 
 		w.Header().Set("Connection", "keep-alive")
@@ -214,8 +214,8 @@ func main() {
 				w.Write([]byte("HTTPMQ_GET_END"))
 			} else {
 				queue_name := name + getpos
-				v, _ := db.Get([]byte(queue_name), nil)
-				if v != nil {
+				v, err := db.Get([]byte(queue_name), nil)
+				if err == nil {
 					w.Header().Set("Pos", getpos)
 					w.Write(v)
 				} else {
@@ -250,8 +250,8 @@ func main() {
 
 			w.Write([]byte(buf))
 		} else if opt == "view" {
-			v, _ := db.Get([]byte(name+pos), nil)
-			if v != nil {
+			v, err := db.Get([]byte(name+pos), nil)
+			if err == nil {
 				w.Write([]byte(v))
 			} else {
 				w.Write([]byte("HTTPMQ_VIEW_ERROR"))
