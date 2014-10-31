@@ -32,7 +32,7 @@ import (
 )
 
 // httpmq version
-const VERSION = "0.1"
+const VERSION = "0.2"
 
 var db *leveldb.DB
 var default_maxqueue, cpu, cacheSize, writeBuffer *int
