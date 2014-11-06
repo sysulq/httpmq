@@ -29,13 +29,14 @@ import (
 	_ "net/http/pprof"
 	"runtime"
 	"strconv"
+	"time"
 )
 
 // httpmq version
-const VERSION = "0.2"
+const VERSION = "0.3"
 
 var db *leveldb.DB
-var default_maxqueue, cpu, cacheSize, writeBuffer *int
+var default_maxqueue, keepalive, cpu, cacheSize, writeBuffer *int
 var ip, port, default_auth, dbpath *string
 var verbose *bool
 
@@ -115,6 +116,7 @@ func main() {
 	cacheSize = flag.Int("cache", 64, "cache size(MB)")
 	writeBuffer = flag.Int("buffer", 32, "write buffer(MB)")
 	cpu = flag.Int("cpu", runtime.NumCPU(), "cpu number for httpmq")
+	keepalive = flag.Int("k", 60, "keepalive timeout for httpmq")
 	flag.Parse()
 
 	var err error
@@ -275,5 +277,11 @@ func main() {
 		}
 	})
 
-	log.Fatal(http.ListenAndServe(*ip+":"+*port, nil))
+	s := &http.Server{
+		Addr:           *ip + ":" + *port,
+		ReadTimeout:    time.Duration(*keepalive) * time.Second,
+		MaxHeaderBytes: 1 << 20,
+	}
+
+	log.Fatal(s.ListenAndServe())
 }
