@@ -326,7 +326,7 @@ func main() {
 			}
 			sort.Sort(sorted)
 
-			for k, v := range date_sorted_reviews {
+			for k, v := range sorted {
 				buf += fmt.Sprintln(k, v.timestamp, v.ip, v.count)
 			}
 			w.Write([]byte(buf))
