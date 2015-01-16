@@ -20,7 +20,6 @@ import (
 	"flag"
 	"fmt"
 	"github.com/syndtr/goleveldb/leveldb"
-	"github.com/syndtr/goleveldb/leveldb/cache"
 	"github.com/syndtr/goleveldb/leveldb/opt"
 	"io/ioutil"
 	"log"
@@ -142,8 +141,7 @@ func main() {
 	flag.Parse()
 
 	var err error
-	ca := cache.NewLRUCache(*cacheSize * 1024 * 1024)
-	db, err = leveldb.OpenFile(*dbpath, &opt.Options{BlockCache: ca,
+	db, err = leveldb.OpenFile(*dbpath, &opt.Options{BlockCacheCapacity: *cacheSize,
 		WriteBuffer: *writeBuffer * 1024 * 1024})
 	if err != nil {
 		log.Fatalln("db.Get(), err:", err)
