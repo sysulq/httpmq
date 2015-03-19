@@ -1,7 +1,7 @@
 httpmq
 ======
 
-This program is a simple HTTP message queue written in Go with goleveldb, just like httpsqs wriiten in C with Tokyo Cabinet.
+Httpmq is a simple HTTP message queue written in Go with goleveldb, just like httpsqs wriiten in C with Tokyo Cabinet.
 
 Feature
 ======
