@@ -28,7 +28,6 @@ import (
 	"net/http"
 	_ "net/http/pprof"
 	"runtime"
-	"sort"
 	"strconv"
 	"time"
 )
@@ -40,26 +39,6 @@ var db *leveldb.DB
 var default_maxqueue, keepalive, cpu, cacheSize, writeBuffer *int
 var ip, port, default_auth, dbpath *string
 var verbose *bool
-
-type ipinfo struct {
-	ip        string
-	count     int
-	timestamp time.Time
-}
-
-type timeSlice []ipinfo
-
-func (p timeSlice) Len() int {
-	return len(p)
-}
-
-func (p timeSlice) Less(i, j int) bool {
-	return p[i].timestamp.After(p[j].timestamp)
-}
-
-func (p timeSlice) Swap(i, j int) {
-	p[i], p[j] = p[j], p[i]
-}
 
 // httpmq read metadata api
 // retrieve from leveldb
@@ -155,7 +134,6 @@ func main() {
 	getnamechan := make(chan string, 100)
 	getposchan := make(chan string, 100)
 	putipchan := make(chan string, 100)
-	info := make(map[string]*ipinfo)
 
 	go func(chan string, chan string) {
 		for {
@@ -172,21 +150,6 @@ func main() {
 			getposchan <- getpos
 		}
 	}(getnamechan, getposchan)
-
-	go func(chan string) {
-		for {
-			ip := <-putipchan
-			now := time.Now()
-			info_p := info[ip]
-			if info_p != nil {
-				info_p.ip = ip
-				info_p.count++
-				info_p.timestamp = now
-			} else {
-				info[ip] = &ipinfo{ip: ip, count: 1, timestamp: now}
-			}
-		}
-	}(putipchan)
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		var data string
@@ -313,21 +276,6 @@ func main() {
 			} else {
 				w.Write([]byte("HTTPMQ_MAXQUEUE_CANCLE"))
 			}
-		} else if opt == "info" {
-			buf := fmt.Sprintf("HTTP Simple Queue Service v%s\n", VERSION)
-			buf += fmt.Sprintf("------------------------------\n")
-			buf += fmt.Sprintln("[IpInfo]")
-
-			sorted := make(timeSlice, 0, len(info))
-			for _, d := range info {
-				sorted = append(sorted, *d)
-			}
-			sort.Sort(sorted)
-
-			for k, v := range sorted {
-				buf += fmt.Sprintln(k, v.timestamp, v.ip, v.count)
-			}
-			w.Write([]byte(buf))
 		}
 	})
 
