@@ -19,6 +19,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"github.com/codegangsta/negroni"
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/opt"
 	"io/ioutil"
@@ -29,7 +30,6 @@ import (
 	_ "net/http/pprof"
 	"runtime"
 	"strconv"
-	"time"
 )
 
 // httpmq version
@@ -151,7 +151,8 @@ func main() {
 		}
 	}(getnamechan, getposchan)
 
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		var data string
 		var buf []byte
 		auth := r.FormValue("auth")
@@ -279,11 +280,7 @@ func main() {
 		}
 	})
 
-	s := &http.Server{
-		Addr:           *ip + ":" + *port,
-		ReadTimeout:    time.Duration(*keepalive) * time.Second,
-		MaxHeaderBytes: 1 << 20,
-	}
-
-	log.Fatal(s.ListenAndServe())
+	n := negroni.New(negroni.NewRecovery())
+	n.UseHandler(mux)
+	n.Run(*ip + ":" + *port)
 }
