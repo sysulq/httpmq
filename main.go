@@ -19,7 +19,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/codegangsta/negroni"
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/opt"
 	"io/ioutil"
@@ -280,7 +279,5 @@ func main() {
 		}
 	})
 
-	n := negroni.New(negroni.NewRecovery())
-	n.UseHandler(mux)
-	n.Run(*ip + ":" + *port)
+	log.Println(http.ListenAndServe(*ip+":"+*port, nil))
 }
