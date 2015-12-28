@@ -279,5 +279,5 @@ func main() {
 		}
 	})
 
-	log.Println(http.ListenAndServe(*ip+":"+*port, nil))
+	log.Println(http.ListenAndServe(*ip+":"+*port, mux))
 }
