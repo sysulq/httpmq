@@ -19,16 +19,16 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/syndtr/goleveldb/leveldb"
-	"github.com/syndtr/goleveldb/leveldb/opt"
 	"io/ioutil"
 	"log"
 	"math"
-	"net"
 	"net/http"
 	_ "net/http/pprof"
 	"runtime"
 	"strconv"
+
+	"github.com/syndtr/goleveldb/leveldb"
+	"github.com/syndtr/goleveldb/leveldb/opt"
 )
 
 // httpmq version
@@ -132,7 +132,6 @@ func main() {
 	putposchan := make(chan string, 100)
 	getnamechan := make(chan string, 100)
 	getposchan := make(chan string, 100)
-	putipchan := make(chan string, 100)
 
 	go func(chan string, chan string) {
 		for {
@@ -205,8 +204,6 @@ func main() {
 				} else if len(buf) > 0 {
 					db.Put([]byte(queue_name), buf, nil)
 				}
-				ip, _, _ := net.SplitHostPort(r.RemoteAddr)
-				putipchan <- ip
 				w.Header().Set("Pos", putpos)
 				w.Write([]byte("HTTPMQ_PUT_OK"))
 			} else {
