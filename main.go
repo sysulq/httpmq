@@ -31,12 +31,12 @@ import (
 	"github.com/syndtr/goleveldb/leveldb/opt"
 )
 
-// httpmq version
+// VERSION of httpmq
 const VERSION = "0.4"
 
 var db *leveldb.DB
-var default_maxqueue, keepalive, cpu, cacheSize, writeBuffer *int
-var ip, port, default_auth, dbpath *string
+var defaultMaxqueue, keepalive, cpu, cacheSize, writeBuffer *int
+var ip, port, defaultAuth, dbPath *string
 var verbose *bool
 
 // httpmq read metadata api
@@ -44,11 +44,11 @@ var verbose *bool
 // name.maxqueue - maxqueue
 // name.putpos - putpos
 // name.getpos - getpos
-func httpmq_read_metadata(name string) []string {
+func httpmqReadMetadata(name string) []string {
 	maxqueue := name + ".maxqueue"
 	data1, _ := db.Get([]byte(maxqueue), nil)
 	if len(data1) == 0 {
-		data1 = []byte(strconv.Itoa(*default_maxqueue))
+		data1 = []byte(strconv.Itoa(*defaultMaxqueue))
 	}
 	putpos := name + ".putpos"
 	data2, _ := db.Get([]byte(putpos), nil)
@@ -59,8 +59,8 @@ func httpmq_read_metadata(name string) []string {
 
 // httpmq now getpos api
 // get the current getpos of httpmq for request
-func httpmq_now_getpos(name string) string {
-	metadata := httpmq_read_metadata(name)
+func httpmqNowGetpos(name string) string {
+	metadata := httpmqReadMetadata(name)
 	maxqueue, _ := strconv.Atoi(metadata[0])
 	putpos, _ := strconv.Atoi(metadata[1])
 	getpos, _ := strconv.Atoi(metadata[2])
@@ -84,8 +84,8 @@ func httpmq_now_getpos(name string) string {
 
 // httpmq now putpos api
 // get the current putpos of httpmq for request
-func httpmq_now_putpos(name string) string {
-	metadata := httpmq_read_metadata(name)
+func httpmqNowPutpos(name string) string {
+	metadata := httpmqReadMetadata(name)
 	maxqueue, _ := strconv.Atoi(metadata[0])
 	putpos, _ := strconv.Atoi(metadata[1])
 	getpos, _ := strconv.Atoi(metadata[2])
@@ -106,12 +106,12 @@ func httpmq_now_putpos(name string) string {
 	return metadata[1]
 }
 
-func main() {
-	default_maxqueue = flag.Int("maxqueue", 1000000, "the max queue length")
+func init() {
+	defaultMaxqueue = flag.Int("maxqueue", 1000000, "the max queue length")
 	ip = flag.String("ip", "0.0.0.0", "ip address to listen on")
 	port = flag.String("port", "1218", "port to listen on")
-	default_auth = flag.String("auth", "", "auth password to access httpmq")
-	dbpath = flag.String("db", "level.db", "database path")
+	defaultAuth = flag.String("auth", "", "auth password to access httpmq")
+	dbPath = flag.String("db", "level.db", "database path")
 	cacheSize = flag.Int("cache", 64, "cache size(MB)")
 	writeBuffer = flag.Int("buffer", 32, "write buffer(MB)")
 	cpu = flag.Int("cpu", runtime.NumCPU(), "cpu number for httpmq")
@@ -119,13 +119,14 @@ func main() {
 	flag.Parse()
 
 	var err error
-	db, err = leveldb.OpenFile(*dbpath, &opt.Options{BlockCacheCapacity: *cacheSize,
+	db, err = leveldb.OpenFile(*dbPath, &opt.Options{BlockCacheCapacity: *cacheSize,
 		WriteBuffer: *writeBuffer * 1024 * 1024})
 	if err != nil {
 		log.Fatalln("db.Get(), err:", err)
 	}
+}
 
-	runtime.GOMAXPROCS(*cpu)
+func httpmqSetupMux() *http.ServeMux {
 	sync := &opt.WriteOptions{Sync: true}
 
 	putnamechan := make(chan string, 100)
@@ -136,7 +137,7 @@ func main() {
 	go func(chan string, chan string) {
 		for {
 			name := <-putnamechan
-			putpos := httpmq_now_putpos(name)
+			putpos := httpmqNowPutpos(name)
 			putposchan <- putpos
 		}
 	}(putnamechan, putposchan)
@@ -144,7 +145,7 @@ func main() {
 	go func(chan string, chan string) {
 		for {
 			name := <-getnamechan
-			getpos := httpmq_now_getpos(name)
+			getpos := httpmqNowGetpos(name)
 			getposchan <- getpos
 		}
 	}(getnamechan, getposchan)
@@ -160,7 +161,7 @@ func main() {
 		num := r.FormValue("num")
 		charset := r.FormValue("charset")
 
-		if *default_auth != "" && *default_auth != auth {
+		if *defaultAuth != "" && *defaultAuth != auth {
 			w.Write([]byte("HTTPMQ_AUTH_FAILED"))
 			return
 		}
@@ -198,11 +199,11 @@ func main() {
 			putpos := <-putposchan
 
 			if putpos != "0" {
-				queue_name := name + putpos
+				queueName := name + putpos
 				if data != "" {
-					db.Put([]byte(queue_name), []byte(data), nil)
+					db.Put([]byte(queueName), []byte(data), nil)
 				} else if len(buf) > 0 {
-					db.Put([]byte(queue_name), buf, nil)
+					db.Put([]byte(queueName), buf, nil)
 				}
 				w.Header().Set("Pos", putpos)
 				w.Write([]byte("HTTPMQ_PUT_OK"))
@@ -216,8 +217,8 @@ func main() {
 			if getpos == "0" {
 				w.Write([]byte("HTTPMQ_GET_END"))
 			} else {
-				queue_name := name + getpos
-				v, err := db.Get([]byte(queue_name), nil)
+				queueName := name + getpos
+				v, err := db.Get([]byte(queueName), nil)
 				if err == nil {
 					w.Header().Set("Pos", getpos)
 					w.Write(v)
@@ -226,29 +227,29 @@ func main() {
 				}
 			}
 		} else if opt == "status" {
-			metadata := httpmq_read_metadata(name)
+			metadata := httpmqReadMetadata(name)
 			maxqueue, _ := strconv.Atoi(metadata[0])
 			putpos, _ := strconv.Atoi(metadata[1])
 			getpos, _ := strconv.Atoi(metadata[2])
 
 			var ungetnum float64
-			var put_times, get_times string
+			var putTimes, getTimes string
 			if putpos >= getpos {
 				ungetnum = math.Abs(float64(putpos - getpos))
-				put_times = "1st lap"
-				get_times = "1st lap"
+				putTimes = "1st lap"
+				getTimes = "1st lap"
 			} else if putpos < getpos {
 				ungetnum = math.Abs(float64(maxqueue - getpos + putpos))
-				put_times = "2nd lap"
-				get_times = "1st lap"
+				putTimes = "2nd lap"
+				getTimes = "1st lap"
 			}
 
 			buf := fmt.Sprintf("HTTP Simple Queue Service v%s\n", VERSION)
 			buf += fmt.Sprintf("------------------------------\n")
 			buf += fmt.Sprintf("Queue Name: %s\n", name)
 			buf += fmt.Sprintf("Maximum number of queues: %d\n", maxqueue)
-			buf += fmt.Sprintf("Put position of queue (%s): %d\n", put_times, putpos)
-			buf += fmt.Sprintf("Get position of queue (%s): %d\n", get_times, getpos)
+			buf += fmt.Sprintf("Put position of queue (%s): %d\n", putTimes, putpos)
+			buf += fmt.Sprintf("Get position of queue (%s): %d\n", getTimes, getpos)
 			buf += fmt.Sprintf("Number of unread queue: %g\n\n", ungetnum)
 
 			w.Write([]byte(buf))
@@ -260,7 +261,7 @@ func main() {
 				w.Write([]byte("HTTPMQ_VIEW_ERROR"))
 			}
 		} else if opt == "reset" {
-			maxqueue := strconv.Itoa(*default_maxqueue)
+			maxqueue := strconv.Itoa(*defaultMaxqueue)
 			db.Put([]byte(name+".maxqueue"), []byte(maxqueue), sync)
 			db.Put([]byte(name+".putpos"), []byte("0"), sync)
 			db.Put([]byte(name+".getpos"), []byte("0"), sync)
@@ -275,6 +276,11 @@ func main() {
 			}
 		}
 	})
+	return mux
+}
 
-	log.Println(http.ListenAndServe(*ip+":"+*port, mux))
+func main() {
+	runtime.GOMAXPROCS(*cpu)
+	mux := httpmqSetupMux()
+	log.Fatal(http.ListenAndServe(*ip+":"+*port, mux))
 }
