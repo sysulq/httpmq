@@ -1,6 +1,6 @@
 httpmq
 ======
-[![wercker status](https://app.wercker.com/status/d19e73df9017e9c60bebd47368c5f2bd/s "wercker status")](https://app.wercker.com/project/bykey/d19e73df9017e9c60bebd47368c5f2bd)
+[![Build Status](https://travis-ci.org/hnlq715/httpmq.svg?branch=master)](https://travis-ci.org/hnlq715/httpmq)
 
 Httpmq is a simple HTTP message queue written in Go with goleveldb, just like httpsqs wriiten in C with Tokyo Cabinet.
 
@@ -96,7 +96,7 @@ Test machine:
     This is ApacheBench, Version 2.3 <$Revision: 655654 $>
     Copyright 1996 Adam Twiss, Zeus Technology Ltd, http://www.zeustech.net/
     Licensed to The Apache Software Foundation, http://www.apache.org/
-    
+
     Benchmarking 127.0.0.1 (be patient)
     Completed 1000 requests
     Completed 2000 requests
@@ -109,15 +109,15 @@ Test machine:
     Completed 9000 requests
     Completed 10000 requests
     Finished 10000 requests
-    
-    
+
+
     Server Software:        
     Server Hostname:        127.0.0.1
     Server Port:            1218
-    
+
     Document Path:          /?name=xoyo&opt=put&data=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
     Document Length:        13 bytes
-    
+
     Concurrency Level:      1000
     Time taken for tests:   0.771 seconds
     Complete requests:      10000
@@ -130,14 +130,14 @@ Test machine:
     Time per request:       77.133 [ms] (mean)
     Time per request:       0.077 [ms] (mean, across all concurrent requests)
     Transfer rate:          2076.38 [Kbytes/sec] received
-    
+
     Connection Times (ms)
                   min  mean[+/-sd] median   max
     Connect:        0    2   7.7      0      41
     Processing:     0   70  74.9     73     473
     Waiting:        0   70  74.9     73     473
     Total:          0   72  75.8     76     473
-    
+
     Percentage of the requests served within a certain time (ms)
       50%     76
       66%     91
@@ -155,7 +155,7 @@ Test machine:
     This is ApacheBench, Version 2.3 <$Revision: 655654 $>
     Copyright 1996 Adam Twiss, Zeus Technology Ltd, http://www.zeustech.net/
     Licensed to The Apache Software Foundation, http://www.apache.org/
-    
+
     Benchmarking 127.0.0.1 (be patient)
     Completed 1000 requests
     Completed 2000 requests
@@ -168,15 +168,15 @@ Test machine:
     Completed 9000 requests
     Completed 10000 requests
     Finished 10000 requests
-    
-    
+
+
     Server Software:        
     Server Hostname:        127.0.0.1
     Server Port:            1218
-    
+
     Document Path:          /?name=xoyo&opt=get
     Document Length:        512 bytes
-    
+
     Concurrency Level:      1000
     Time taken for tests:   0.703 seconds
     Complete requests:      10000
@@ -189,14 +189,14 @@ Test machine:
     Time per request:       70.285 [ms] (mean)
     Time per request:       0.070 [ms] (mean, across all concurrent requests)
     Transfer rate:          9225.86 [Kbytes/sec] received
-    
+
     Connection Times (ms)
                   min  mean[+/-sd] median   max
     Connect:        0    1   5.3      0      33
     Processing:     0   49  61.2     20     449
     Waiting:        0   49  61.2     20     449
     Total:          0   50  62.0     22     471
-    
+
     Percentage of the requests served within a certain time (ms)
       50%     22
       66%     67
