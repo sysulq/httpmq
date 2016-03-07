@@ -8,7 +8,7 @@ import (
 )
 
 func TestStatus(t *testing.T) {
-	n := setupMux()
+	n := httpmqSetupMux()
 	ts := httptest.NewServer(n)
 	defer ts.Close()
 
@@ -38,7 +38,7 @@ Number of unread queue: 0
 }
 
 func TestPutGet(t *testing.T) {
-	n := setupMux()
+	n := httpmqSetupMux()
 	ts := httptest.NewServer(n)
 	defer ts.Close()
 
@@ -77,7 +77,7 @@ func TestPutGet(t *testing.T) {
 }
 
 func BenchmarkPut(b *testing.B) {
-	n := setupMux()
+	n := httpmqSetupMux()
 	ts := httptest.NewServer(n)
 	defer ts.Close()
 
@@ -96,7 +96,7 @@ func BenchmarkPut(b *testing.B) {
 }
 
 func BenchmarkGet(b *testing.B) {
-	n := setupMux()
+	n := httpmqSetupMux()
 	ts := httptest.NewServer(n)
 	defer ts.Close()
 
