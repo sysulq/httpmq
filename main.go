@@ -19,20 +19,19 @@ package main
 import (
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"math"
-	"net/http"
 	_ "net/http/pprof"
 	"runtime"
 	"strconv"
 
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/opt"
+	"github.com/valyala/fasthttp"
 )
 
 // VERSION of httpmq
-const VERSION = "0.4"
+const VERSION = "0.5"
 
 var db *leveldb.DB
 var defaultMaxqueue, keepalive, cpu, cacheSize, writeBuffer *int
@@ -126,7 +125,9 @@ func init() {
 	}
 }
 
-func httpmqSetupMux() *http.ServeMux {
+func main() {
+	runtime.GOMAXPROCS(*cpu)
+
 	sync := &opt.WriteOptions{Sync: true}
 
 	putnamechan := make(chan string, 100)
@@ -150,48 +151,47 @@ func httpmqSetupMux() *http.ServeMux {
 		}
 	}(getnamechan, getposchan)
 
-	mux := http.NewServeMux()
-	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+	m := func(ctx *fasthttp.RequestCtx) {
 		var data string
 		var buf []byte
-		auth := r.FormValue("auth")
-		name := r.FormValue("name")
-		opt := r.FormValue("opt")
-		pos := r.FormValue("pos")
-		num := r.FormValue("num")
-		charset := r.FormValue("charset")
+		auth := string(ctx.FormValue("auth"))
+		name := string(ctx.FormValue("name"))
+		opt := string(ctx.FormValue("opt"))
+		pos := string(ctx.FormValue("pos"))
+		num := string(ctx.FormValue("num"))
+		charset := string(ctx.FormValue("charset"))
 
 		if *defaultAuth != "" && *defaultAuth != auth {
-			w.Write([]byte("HTTPMQ_AUTH_FAILED"))
+			ctx.Write([]byte("HTTPMQ_AUTH_FAILED"))
 			return
 		}
 
-		if r.Method == "GET" {
-			data = r.FormValue("data")
-		} else if r.Method == "POST" {
-			if r.Header.Get("Content-Type") == "application/x-www-form-urlencoded" {
-				data = r.PostFormValue("data")
+		method := string(ctx.Method())
+		if method == "GET" {
+			data = string(ctx.FormValue("data"))
+		} else if method == "POST" {
+			if string(ctx.Request.Header.ContentType()) == "application/x-www-form-urlencoded" {
+				data = string(ctx.FormValue("data"))
 			} else {
-				buf, _ = ioutil.ReadAll(r.Body)
-				r.Body.Close()
+				buf = ctx.PostBody()
 			}
 		}
 
 		if len(name) == 0 || len(opt) == 0 {
-			w.Write([]byte("HTTPMQ_ERROR"))
+			ctx.Write([]byte("HTTPMQ_ERROR"))
 			return
 		}
 
-		w.Header().Set("Connection", "keep-alive")
-		w.Header().Set("Cache-Control", "no-cache")
-		w.Header().Set("Content-type", "text/plain")
+		ctx.Response.Header.Set("Connection", "keep-alive")
+		ctx.Response.Header.Set("Cache-Control", "no-cache")
+		ctx.Response.Header.Set("Content-type", "text/plain")
 		if len(charset) > 0 {
-			w.Header().Set("Content-type", "text/plain; charset="+charset)
+			ctx.Response.Header.Set("Content-type", "text/plain; charset="+charset)
 		}
 
 		if opt == "put" {
 			if len(data) == 0 && len(buf) == 0 {
-				w.Write([]byte("HTTPMQ_PUT_ERROR"))
+				ctx.Write([]byte("HTTPMQ_PUT_ERROR"))
 				return
 			}
 
@@ -205,25 +205,25 @@ func httpmqSetupMux() *http.ServeMux {
 				} else if len(buf) > 0 {
 					db.Put([]byte(queueName), buf, nil)
 				}
-				w.Header().Set("Pos", putpos)
-				w.Write([]byte("HTTPMQ_PUT_OK"))
+				ctx.Response.Header.Set("Pos", putpos)
+				ctx.Write([]byte("HTTPMQ_PUT_OK"))
 			} else {
-				w.Write([]byte("HTTPMQ_PUT_END"))
+				ctx.Write([]byte("HTTPMQ_PUT_END"))
 			}
 		} else if opt == "get" {
 			getnamechan <- name
 			getpos := <-getposchan
 
 			if getpos == "0" {
-				w.Write([]byte("HTTPMQ_GET_END"))
+				ctx.Write([]byte("HTTPMQ_GET_END"))
 			} else {
 				queueName := name + getpos
 				v, err := db.Get([]byte(queueName), nil)
 				if err == nil {
-					w.Header().Set("Pos", getpos)
-					w.Write(v)
+					ctx.Response.Header.Set("Pos", getpos)
+					ctx.Write(v)
 				} else {
-					w.Write([]byte("HTTPMQ_GET_ERROR"))
+					ctx.Write([]byte("HTTPMQ_GET_ERROR"))
 				}
 			}
 		} else if opt == "status" {
@@ -252,35 +252,30 @@ func httpmqSetupMux() *http.ServeMux {
 			buf += fmt.Sprintf("Get position of queue (%s): %d\n", getTimes, getpos)
 			buf += fmt.Sprintf("Number of unread queue: %g\n\n", ungetnum)
 
-			w.Write([]byte(buf))
+			ctx.Write([]byte(buf))
 		} else if opt == "view" {
 			v, err := db.Get([]byte(name+pos), nil)
 			if err == nil {
-				w.Write([]byte(v))
+				ctx.Write([]byte(v))
 			} else {
-				w.Write([]byte("HTTPMQ_VIEW_ERROR"))
+				ctx.Write([]byte("HTTPMQ_VIEW_ERROR"))
 			}
 		} else if opt == "reset" {
 			maxqueue := strconv.Itoa(*defaultMaxqueue)
 			db.Put([]byte(name+".maxqueue"), []byte(maxqueue), sync)
 			db.Put([]byte(name+".putpos"), []byte("0"), sync)
 			db.Put([]byte(name+".getpos"), []byte("0"), sync)
-			w.Write([]byte("HTTPMQ_RESET_OK"))
+			ctx.Write([]byte("HTTPMQ_RESET_OK"))
 		} else if opt == "maxqueue" {
 			maxqueue, _ := strconv.Atoi(num)
 			if maxqueue > 0 && maxqueue <= 10000000 {
 				db.Put([]byte(name+".maxqueue"), []byte(num), sync)
-				w.Write([]byte("HTTPMQ_MAXQUEUE_OK"))
+				ctx.Write([]byte("HTTPMQ_MAXQUEUE_OK"))
 			} else {
-				w.Write([]byte("HTTPMQ_MAXQUEUE_CANCLE"))
+				ctx.Write([]byte("HTTPMQ_MAXQUEUE_CANCLE"))
 			}
 		}
-	})
-	return mux
-}
+	}
 
-func main() {
-	runtime.GOMAXPROCS(*cpu)
-	mux := httpmqSetupMux()
-	log.Fatal(http.ListenAndServe(*ip+":"+*port, mux))
+	log.Fatal(fasthttp.ListenAndServe(*ip+":"+*port, m))
 }

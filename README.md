@@ -20,18 +20,25 @@ Feature
 Usage
 ======
   ```
-  Usage of ./httpmq:
-    -auth="": auth password to access httpmq
-    -buffer=4: write buffer(MB)
-    -cache=8: cache size(MB)
-    -cpu=1: cpu number for httpmq
-    -db="level.db": database path
-    -ip="0.0.0.0": ip address to listen on
-    -maxqueue=1000000: the max queue length
-    -port="1218": port to listen on
-    -readtimeout=15: read timeout for an http request
-    -verbose=true: output log
-    -writetimeout=15: write timeout for an http request
+Usage of ./httpmq:
+  -auth string
+    	auth password to access httpmq
+  -buffer int
+    	write buffer(MB) (default 32)
+  -cache int
+    	cache size(MB) (default 64)
+  -cpu int
+    	cpu number for httpmq (default 4)
+  -db string
+    	database path (default "level.db")
+  -ip string
+    	ip address to listen on (default "0.0.0.0")
+  -k int
+    	keepalive timeout for httpmq (default 60)
+  -maxqueue int
+    	the max queue length (default 1000000)
+  -port string
+    	port to listen on (default "1218")
   ```
 
 1. PUT text message into a queue
@@ -74,136 +81,65 @@ Usage
 Benchmark
 ========
 
-Test machine:
+Test machine(Mac Pro):
   ```
-  CPU:    2  AMD Athlon(tm) II X2 245 Processor
-  Memory: Size: 2048 MB
-          Locator: DIMM0
-          Range Size: 2 GB
-          Size: 2048 MB
-          Locator: DIMM1
-          Range Size: 2 GB
-          Size: No Module Installed
-          Locator: DIMM2
-          Size: No Module Installed
-          Locator: DIMM3
+  2.7 GHz Intel Core i5
+  8 GB 1867 MHz DDR3
   ```
 
+net/http
+--------
+###PUT queue:
+```
+wrk -c 10 -t 2 -d 10s "http://127.0.0.1:1218/?name=xoyo&opt=put&data=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+Running 10s test @ http://127.0.0.1:1218/?name=xoyo&opt=put&data=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+  2 threads and 10 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency     1.12ms    4.36ms  78.68ms   98.01%
+    Req/Sec     9.05k     1.46k   12.38k    75.00%
+  180109 requests in 10.01s, 30.30MB read
+Requests/sec:  18000.03
+Transfer/sec:      3.03MB
+```
+###GET queue:
+```
+wrk -c 10 -t 2 -d 10s "http://127.0.0.1:1218/?name=xoyo&opt=get"
+Running 10s test @ http://127.0.0.1:1218/?name=xoyo&opt=get
+  2 threads and 10 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency   758.39us    1.27ms  33.49ms   96.82%
+    Req/Sec     8.03k     3.42k   14.66k    62.50%
+  159807 requests in 10.01s, 103.07MB read
+Requests/sec:  15970.14
+Transfer/sec:     10.30MB
+```
+
+
+fasthttp
+--------
 
 ###PUT queue:
-
-    ab -k -c 1000 -n 10000 "http://127.0.0.1:1218/?name=xoyo&opt=put&data=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-    This is ApacheBench, Version 2.3 <$Revision: 655654 $>
-    Copyright 1996 Adam Twiss, Zeus Technology Ltd, http://www.zeustech.net/
-    Licensed to The Apache Software Foundation, http://www.apache.org/
-
-    Benchmarking 127.0.0.1 (be patient)
-    Completed 1000 requests
-    Completed 2000 requests
-    Completed 3000 requests
-    Completed 4000 requests
-    Completed 5000 requests
-    Completed 6000 requests
-    Completed 7000 requests
-    Completed 8000 requests
-    Completed 9000 requests
-    Completed 10000 requests
-    Finished 10000 requests
-
-
-    Server Software:        
-    Server Hostname:        127.0.0.1
-    Server Port:            1218
-
-    Document Path:          /?name=xoyo&opt=put&data=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
-    Document Length:        13 bytes
-
-    Concurrency Level:      1000
-    Time taken for tests:   0.771 seconds
-    Complete requests:      10000
-    Failed requests:        0
-    Write errors:           0
-    Keep-Alive requests:    10000
-    Total transferred:      1640000 bytes
-    HTML transferred:       130000 bytes
-    Requests per second:    12964.69 [#/sec] (mean)
-    Time per request:       77.133 [ms] (mean)
-    Time per request:       0.077 [ms] (mean, across all concurrent requests)
-    Transfer rate:          2076.38 [Kbytes/sec] received
-
-    Connection Times (ms)
-                  min  mean[+/-sd] median   max
-    Connect:        0    2   7.7      0      41
-    Processing:     0   70  74.9     73     473
-    Waiting:        0   70  74.9     73     473
-    Total:          0   72  75.8     76     473
-
-    Percentage of the requests served within a certain time (ms)
-      50%     76
-      66%     91
-      75%     98
-      80%    110
-      90%    183
-      95%    216
-      98%    272
-      99%    310
-     100%    473 (longest request)
+```
+wrk -c 100 -t 2 -d 10s "http://127.0.0.1:1218/?name=xoyo&opt=get"
+Running 10s test @ http://127.0.0.1:1218/?name=xoyo&opt=get
+  2 threads and 100 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency     5.15ms    5.13ms  87.09ms   95.58%
+    Req/Sec    10.85k     2.23k   13.96k    79.00%
+  216088 requests in 10.02s, 143.14MB read
+Requests/sec:  21572.72
+Transfer/sec:     14.29MB
+```
 
 ###GET queue:
-
-    ab -k -c 1000 -n 10000 "http://127.0.0.1:1218/?name=xoyo&opt=get"                                                                                                   [system]
-    This is ApacheBench, Version 2.3 <$Revision: 655654 $>
-    Copyright 1996 Adam Twiss, Zeus Technology Ltd, http://www.zeustech.net/
-    Licensed to The Apache Software Foundation, http://www.apache.org/
-
-    Benchmarking 127.0.0.1 (be patient)
-    Completed 1000 requests
-    Completed 2000 requests
-    Completed 3000 requests
-    Completed 4000 requests
-    Completed 5000 requests
-    Completed 6000 requests
-    Completed 7000 requests
-    Completed 8000 requests
-    Completed 9000 requests
-    Completed 10000 requests
-    Finished 10000 requests
-
-
-    Server Software:        
-    Server Hostname:        127.0.0.1
-    Server Port:            1218
-
-    Document Path:          /?name=xoyo&opt=get
-    Document Length:        512 bytes
-
-    Concurrency Level:      1000
-    Time taken for tests:   0.703 seconds
-    Complete requests:      10000
-    Failed requests:        0
-    Write errors:           0
-    Keep-Alive requests:    10000
-    Total transferred:      6640000 bytes
-    HTML transferred:       5120000 bytes
-    Requests per second:    14227.83 [#/sec] (mean)
-    Time per request:       70.285 [ms] (mean)
-    Time per request:       0.070 [ms] (mean, across all concurrent requests)
-    Transfer rate:          9225.86 [Kbytes/sec] received
-
-    Connection Times (ms)
-                  min  mean[+/-sd] median   max
-    Connect:        0    1   5.3      0      33
-    Processing:     0   49  61.2     20     449
-    Waiting:        0   49  61.2     20     449
-    Total:          0   50  62.0     22     471
-
-    Percentage of the requests served within a certain time (ms)
-      50%     22
-      66%     67
-      75%     87
-      80%    105
-      90%    128
-      95%    161
-      98%    224
-      99%    240
-     100%    471 (longest request)
+```
+wrk -c 10 -t 2 -d 10s "http://127.0.0.1:1218/?name=xoyo&opt=put&data=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+Running 10s test @ http://127.0.0.1:1218/?name=xoyo&opt=put&data=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+  2 threads and 10 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency   749.65us    2.56ms  44.05ms   98.00%
+    Req/Sec    11.21k     1.99k   13.93k    68.00%
+  223151 requests in 10.01s, 41.39MB read
+Requests/sec:  22293.74
+Transfer/sec:      4.14MB
+```
