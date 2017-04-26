@@ -1,6 +1,7 @@
 httpmq
 ======
 [![Build Status](https://travis-ci.org/hnlq715/httpmq.svg?branch=master)](https://travis-ci.org/hnlq715/httpmq)
+![Docker Pulls](https://img.shields.io/docker/pulls/sophos/httpmq.svg)
 
 Httpmq is a simple HTTP message queue written in Go with goleveldb, just like httpsqs wriiten in C with Tokyo Cabinet.
 
