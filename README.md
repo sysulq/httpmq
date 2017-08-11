@@ -1,7 +1,7 @@
 httpmq
 ======
 [![Build Status](https://travis-ci.org/hnlq715/httpmq.svg?branch=master)](https://travis-ci.org/hnlq715/httpmq)
-![Docker Pulls](https://img.shields.io/docker/pulls/sophos/httpmq.svg)
+[![Docker Pulls](https://img.shields.io/docker/pulls/sophos/httpmq.svg)](https://hub.docker.com/r/sophos/httpmq/)
 [![Go Report Card](https://goreportcard.com/badge/github.com/hnlq715/httpmq)](https://goreportcard.com/report/github.com/hnlq715/httpmq)
 
 
