@@ -22,6 +22,12 @@ Feature
 
 Usage
 ======
+Docker
+```
+  docker run -d -it -p 1218:1218 sophos/httpmq
+```
+
+Binary
   ```
 Usage of ./httpmq:
   -auth string

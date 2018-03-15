@@ -1,8 +1,19 @@
+sudo: required
+
+services:
+  - docker
+
 language: go
 
-env: GO15VENDOREXPERIMENT=1
-
 go:
-  - 1.5.4
-  - 1.6.2
-  - tip
+- 1.9.4
+
+after_success:
+  - env GOOS=linux GOARCH=386 go build
+  - echo $DOCKER_PASS | docker login -u "$DOCKER_USER" --password-stdin
+  - export REPO=sophos/httpmq
+  - export TAG=`if [ "$TRAVIS_BRANCH" == "master" ]; then echo "latest"; else echo $TRAVIS_BRANCH ; fi`
+  - echo $REPO:$TAG
+  - docker build -f Dockerfile -t $REPO:$TRAVIS_COMMIT .
+  - docker tag $REPO:$TRAVIS_COMMIT $REPO:$TAG
+  - docker push $REPO:$TAG
