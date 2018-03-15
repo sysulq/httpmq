@@ -10,7 +10,7 @@ go:
 
 after_success:
   - env GOOS=linux GOARCH=386 go build
-  - echo $(DOCKER_PASS) | docker login -u "$(DOCKER_USER)" --password-stdin
+  - echo $DOCKER_PASS | docker login -u "$DOCKER_USER" --password-stdin
   - export REPO=sophos/httpmq
   - export TAG=`if [ "$TRAVIS_BRANCH" == "master" ]; then echo "latest"; else echo $TRAVIS_BRANCH ; fi`
   - docker build -f Dockerfile -t $REPO:$TRAVIS_COMMIT .
