@@ -13,6 +13,7 @@ after_success:
   - echo $DOCKER_PASS | docker login -u "$DOCKER_USER" --password-stdin
   - export REPO=sophos/httpmq
   - export TAG=`if [ "$TRAVIS_BRANCH" == "master" ]; then echo "latest"; else echo $TRAVIS_BRANCH ; fi`
+  - echo $REPO:$TAG
   - docker build -f Dockerfile -t $REPO:$TRAVIS_COMMIT .
   - docker tag $REPO:$TRAVIS_COMMIT $REPO:$TAG
   - docker push $REPO:$TAG
