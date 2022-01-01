@@ -120,12 +120,12 @@ fasthttp
 wrk -c 10 -t 2 -d 10s "http://127.0.0.1:1218/?name=xoyo&opt=put&data=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 Running 10s test @ http://127.0.0.1:1218/?name=xoyo&opt=put&data=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
   2 threads and 10 connections
-wrk  Thread Stats   Avg      Stdev     Max   +/- Stdev
-    Latency   194.44us  232.25us   7.12ms   98.23%
-    Req/Sec    27.44k     8.07k   55.18k    89.00%
-  545903 requests in 10.00s, 100.58MB read
-Requests/sec:  54589.95
-Transfer/sec:     10.06MB
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency   226.11us  310.53us   9.80ms   98.21%
+    Req/Sec    24.63k     2.48k   27.74k    83.17%
+  495156 requests in 10.10s, 83.58MB read
+Requests/sec:  49017.18
+Transfer/sec:      8.27MB
 ```
 
 ### GET queue:
@@ -134,10 +134,10 @@ Transfer/sec:     10.06MB
 wrk -c 10 -t 2 -d 10s "http://127.0.0.1:1218/?name=xoyo&opt=get"
 Running 10s test @ http://127.0.0.1:1218/?name=xoyo&opt=get
   2 threads and 10 connections
-    Thread Stats   Avg      Stdev     Max   +/- Stdev 
-       Latency   220.76us  165.35us   6.16ms   98.30%
-       Req/Sec    22.84k     0.93k   24.27k    86.14%
-  459336 requests in 10.10s, 304.34MB read
-Requests/sec:  45474.26
-Transfer/sec:     30.13MB
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency   244.25us  212.87us  10.21ms   98.73%
+    Req/Sec    20.62k     1.02k   23.93k    84.65%
+  414469 requests in 10.10s, 267.49MB read
+Requests/sec:  41038.90
+Transfer/sec:     26.49MB
 ```
