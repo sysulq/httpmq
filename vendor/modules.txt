@@ -1,0 +1,35 @@
+# github.com/golang/snappy v0.0.0-20150730031844-723cc1e459b8
+## explicit
+github.com/golang/snappy
+# github.com/klauspost/compress v0.0.0-20160421081654-14eb9c495119
+## explicit
+github.com/klauspost/compress/flate
+github.com/klauspost/compress/gzip
+github.com/klauspost/compress/zlib
+# github.com/klauspost/cpuid v0.0.0-20160302075316-09cded8978dc
+## explicit
+github.com/klauspost/cpuid
+# github.com/klauspost/crc32 v0.0.0-20160219142609-19b0b332c9e4
+## explicit
+github.com/klauspost/crc32
+# github.com/onsi/ginkgo v1.16.5
+## explicit; go 1.16
+# github.com/onsi/gomega v1.17.0
+## explicit; go 1.16
+# github.com/syndtr/goleveldb v0.0.0-20151210013849-5acacf6e72d3
+## explicit
+github.com/syndtr/goleveldb/leveldb
+github.com/syndtr/goleveldb/leveldb/cache
+github.com/syndtr/goleveldb/leveldb/comparer
+github.com/syndtr/goleveldb/leveldb/errors
+github.com/syndtr/goleveldb/leveldb/filter
+github.com/syndtr/goleveldb/leveldb/iterator
+github.com/syndtr/goleveldb/leveldb/journal
+github.com/syndtr/goleveldb/leveldb/memdb
+github.com/syndtr/goleveldb/leveldb/opt
+github.com/syndtr/goleveldb/leveldb/storage
+github.com/syndtr/goleveldb/leveldb/table
+github.com/syndtr/goleveldb/leveldb/util
+# github.com/valyala/fasthttp v0.0.0-20160419093049-229698876475
+## explicit
+github.com/valyala/fasthttp
