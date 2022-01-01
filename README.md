@@ -90,7 +90,7 @@ Usage of ./httpmq:
 Benchmark
 ========
 
-Test machine(Mac Pro):
+Test machine(Hackintosh):
 
 ```text
                     'c.          
