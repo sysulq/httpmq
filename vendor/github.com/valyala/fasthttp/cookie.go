@@ -18,6 +18,24 @@ var (
 	CookieExpireUnlimited = zeroTime
 )
 
+// CookieSameSite is an enum for the mode in which the SameSite flag should be set for the given cookie.
+// See https://tools.ietf.org/html/draft-ietf-httpbis-cookie-same-site-00 for details.
+type CookieSameSite int
+
+const (
+	// CookieSameSiteDisabled removes the SameSite flag
+	CookieSameSiteDisabled CookieSameSite = iota
+	// CookieSameSiteDefaultMode sets the SameSite flag
+	CookieSameSiteDefaultMode
+	// CookieSameSiteLaxMode sets the SameSite flag with the "Lax" parameter
+	CookieSameSiteLaxMode
+	// CookieSameSiteStrictMode sets the SameSite flag with the "Strict" parameter
+	CookieSameSiteStrictMode
+	// CookieSameSiteNoneMode sets the SameSite flag with the "None" parameter
+	// see https://tools.ietf.org/html/draft-west-cookie-incrementalism-00
+	CookieSameSiteNoneMode
+)
+
 // AcquireCookie returns an empty Cookie object from the pool.
 //
 // The returned object may be returned back to the pool with ReleaseCookie.
@@ -47,16 +65,18 @@ var cookiePool = &sync.Pool{
 //
 // Cookie instance MUST NOT be used from concurrently running goroutines.
 type Cookie struct {
-	noCopy noCopy
+	noCopy noCopy //nolint:unused,structcheck
 
 	key    []byte
 	value  []byte
 	expire time.Time
+	maxAge int
 	domain []byte
 	path   []byte
 
 	httpOnly bool
 	secure   bool
+	sameSite CookieSameSite
 
 	bufKV argsKV
 	buf   []byte
@@ -65,13 +85,15 @@ type Cookie struct {
 // CopyTo copies src cookie to c.
 func (c *Cookie) CopyTo(src *Cookie) {
 	c.Reset()
-	c.key = append(c.key[:0], src.key...)
-	c.value = append(c.value[:0], src.value...)
+	c.key = append(c.key, src.key...)
+	c.value = append(c.value, src.value...)
 	c.expire = src.expire
-	c.domain = append(c.domain[:0], src.domain...)
-	c.path = append(c.path[:0], src.path...)
+	c.maxAge = src.maxAge
+	c.domain = append(c.domain, src.domain...)
+	c.path = append(c.path, src.path...)
 	c.httpOnly = src.httpOnly
 	c.secure = src.secure
+	c.sameSite = src.sameSite
 }
 
 // HTTPOnly returns true if the cookie is http only.
@@ -94,6 +116,20 @@ func (c *Cookie) SetSecure(secure bool) {
 	c.secure = secure
 }
 
+// SameSite returns the SameSite mode.
+func (c *Cookie) SameSite() CookieSameSite {
+	return c.sameSite
+}
+
+// SetSameSite sets the cookie's SameSite flag to the given value.
+// set value CookieSameSiteNoneMode will set Secure to true also to avoid browser rejection
+func (c *Cookie) SetSameSite(mode CookieSameSite) {
+	c.sameSite = mode
+	if mode == CookieSameSiteNoneMode {
+		c.SetSecure(true)
+	}
+}
+
 // Path returns cookie path.
 func (c *Cookie) Path() []byte {
 	return c.path
@@ -113,7 +149,8 @@ func (c *Cookie) SetPathBytes(path []byte) {
 
 // Domain returns cookie domain.
 //
-// The returned domain is valid until the next Cookie modification method call.
+// The returned value is valid until the Cookie reused or released (ReleaseCookie).
+// Do not store references to the returned value. Make copies instead.
 func (c *Cookie) Domain() []byte {
 	return c.domain
 }
@@ -126,6 +163,20 @@ func (c *Cookie) SetDomain(domain string) {
 // SetDomainBytes sets cookie domain.
 func (c *Cookie) SetDomainBytes(domain []byte) {
 	c.domain = append(c.domain[:0], domain...)
+}
+
+// MaxAge returns the seconds until the cookie is meant to expire or 0
+// if no max age.
+func (c *Cookie) MaxAge() int {
+	return c.maxAge
+}
+
+// SetMaxAge sets cookie expiration time based on seconds. This takes precedence
+// over any absolute expiry set on the cookie
+//
+// Set max age to 0 to unset
+func (c *Cookie) SetMaxAge(seconds int) {
+	c.maxAge = seconds
 }
 
 // Expire returns cookie expiration time.
@@ -151,7 +202,8 @@ func (c *Cookie) SetExpire(expire time.Time) {
 
 // Value returns cookie value.
 //
-// The returned value is valid until the next Cookie modification method call.
+// The returned value is valid until the Cookie reused or released (ReleaseCookie).
+// Do not store references to the returned value. Make copies instead.
 func (c *Cookie) Value() []byte {
 	return c.value
 }
@@ -168,7 +220,8 @@ func (c *Cookie) SetValueBytes(value []byte) {
 
 // Key returns cookie name.
 //
-// The returned value is valid until the next Cookie modification method call.
+// The returned value is valid until the Cookie reused or released (ReleaseCookie).
+// Do not store references to the returned value. Make copies instead.
 func (c *Cookie) Key() []byte {
 	return c.key
 }
@@ -188,22 +241,29 @@ func (c *Cookie) Reset() {
 	c.key = c.key[:0]
 	c.value = c.value[:0]
 	c.expire = zeroTime
+	c.maxAge = 0
 	c.domain = c.domain[:0]
 	c.path = c.path[:0]
 	c.httpOnly = false
 	c.secure = false
+	c.sameSite = CookieSameSiteDisabled
 }
 
 // AppendBytes appends cookie representation to dst and returns
 // the extended dst.
 func (c *Cookie) AppendBytes(dst []byte) []byte {
 	if len(c.key) > 0 {
-		dst = AppendQuotedArg(dst, c.key)
+		dst = append(dst, c.key...)
 		dst = append(dst, '=')
 	}
-	dst = AppendQuotedArg(dst, c.value)
+	dst = append(dst, c.value...)
 
-	if !c.expire.IsZero() {
+	if c.maxAge > 0 {
+		dst = append(dst, ';', ' ')
+		dst = append(dst, strCookieMaxAge...)
+		dst = append(dst, '=')
+		dst = AppendUint(dst, c.maxAge)
+	} else if !c.expire.IsZero() {
 		c.bufKV.value = AppendHTTPDate(c.bufKV.value[:0], c.expire)
 		dst = append(dst, ';', ' ')
 		dst = append(dst, strCookieExpires...)
@@ -224,12 +284,33 @@ func (c *Cookie) AppendBytes(dst []byte) []byte {
 		dst = append(dst, ';', ' ')
 		dst = append(dst, strCookieSecure...)
 	}
+	switch c.sameSite {
+	case CookieSameSiteDefaultMode:
+		dst = append(dst, ';', ' ')
+		dst = append(dst, strCookieSameSite...)
+	case CookieSameSiteLaxMode:
+		dst = append(dst, ';', ' ')
+		dst = append(dst, strCookieSameSite...)
+		dst = append(dst, '=')
+		dst = append(dst, strCookieSameSiteLax...)
+	case CookieSameSiteStrictMode:
+		dst = append(dst, ';', ' ')
+		dst = append(dst, strCookieSameSite...)
+		dst = append(dst, '=')
+		dst = append(dst, strCookieSameSiteStrict...)
+	case CookieSameSiteNoneMode:
+		dst = append(dst, ';', ' ')
+		dst = append(dst, strCookieSameSite...)
+		dst = append(dst, '=')
+		dst = append(dst, strCookieSameSiteNone...)
+	}
 	return dst
 }
 
 // Cookie returns cookie representation.
 //
-// The returned value is valid until the next call to Cookie methods.
+// The returned value is valid until the Cookie reused or released (ReleaseCookie).
+// Do not store references to the returned value. Make copies instead.
 func (c *Cookie) Cookie() []byte {
 	c.buf = c.AppendBytes(c.buf[:0])
 	return c.buf
@@ -264,37 +345,89 @@ func (c *Cookie) ParseBytes(src []byte) error {
 	s.b = src
 
 	kv := &c.bufKV
-	if !s.next(kv, true) {
+	if !s.next(kv) {
 		return errNoCookies
 	}
 
-	c.key = append(c.key[:0], kv.key...)
-	c.value = append(c.value[:0], kv.value...)
+	c.key = append(c.key, kv.key...)
+	c.value = append(c.value, kv.value...)
 
-	for s.next(kv, false) {
-		if len(kv.key) == 0 && len(kv.value) == 0 {
-			continue
-		}
-		switch string(kv.key) {
-		case "expires":
-			v := b2s(kv.value)
-			exptime, err := time.ParseInLocation(time.RFC1123, v, time.UTC)
-			if err != nil {
-				return err
+	for s.next(kv) {
+		if len(kv.key) != 0 {
+			// Case insensitive switch on first char
+			switch kv.key[0] | 0x20 {
+			case 'm':
+				if caseInsensitiveCompare(strCookieMaxAge, kv.key) {
+					maxAge, err := ParseUint(kv.value)
+					if err != nil {
+						return err
+					}
+					c.maxAge = maxAge
+				}
+
+			case 'e': // "expires"
+				if caseInsensitiveCompare(strCookieExpires, kv.key) {
+					v := b2s(kv.value)
+					// Try the same two formats as net/http
+					// See: https://github.com/golang/go/blob/00379be17e63a5b75b3237819392d2dc3b313a27/src/net/http/cookie.go#L133-L135
+					exptime, err := time.ParseInLocation(time.RFC1123, v, time.UTC)
+					if err != nil {
+						exptime, err = time.Parse("Mon, 02-Jan-2006 15:04:05 MST", v)
+						if err != nil {
+							return err
+						}
+					}
+					c.expire = exptime
+				}
+
+			case 'd': // "domain"
+				if caseInsensitiveCompare(strCookieDomain, kv.key) {
+					c.domain = append(c.domain, kv.value...)
+				}
+
+			case 'p': // "path"
+				if caseInsensitiveCompare(strCookiePath, kv.key) {
+					c.path = append(c.path, kv.value...)
+				}
+
+			case 's': // "samesite"
+				if caseInsensitiveCompare(strCookieSameSite, kv.key) {
+					if len(kv.value) > 0 {
+						// Case insensitive switch on first char
+						switch kv.value[0] | 0x20 {
+						case 'l': // "lax"
+							if caseInsensitiveCompare(strCookieSameSiteLax, kv.value) {
+								c.sameSite = CookieSameSiteLaxMode
+							}
+						case 's': // "strict"
+							if caseInsensitiveCompare(strCookieSameSiteStrict, kv.value) {
+								c.sameSite = CookieSameSiteStrictMode
+							}
+						case 'n': // "none"
+							if caseInsensitiveCompare(strCookieSameSiteNone, kv.value) {
+								c.sameSite = CookieSameSiteNoneMode
+							}
+						}
+					}
+				}
 			}
-			c.expire = exptime
-		case "domain":
-			c.domain = append(c.domain[:0], kv.value...)
-		case "path":
-			c.path = append(c.path[:0], kv.value...)
-		case "":
-			switch string(kv.value) {
-			case "HttpOnly":
-				c.httpOnly = true
-			case "secure":
-				c.secure = true
+
+		} else if len(kv.value) != 0 {
+			// Case insensitive switch on first char
+			switch kv.value[0] | 0x20 {
+			case 'h': // "httponly"
+				if caseInsensitiveCompare(strCookieHTTPOnly, kv.value) {
+					c.httpOnly = true
+				}
+
+			case 's': // "secure"
+				if caseInsensitiveCompare(strCookieSecure, kv.value) {
+					c.secure = true
+				} else if caseInsensitiveCompare(strCookieSameSite, kv.value) {
+					c.sameSite = CookieSameSiteDefaultMode
+				}
 			}
-		}
+		} // else empty or no match
 	}
 	return nil
 }
@@ -311,17 +444,30 @@ func getCookieKey(dst, src []byte) []byte {
 	if n >= 0 {
 		src = src[:n]
 	}
-	return decodeCookieArg(dst, src, true)
+	return decodeCookieArg(dst, src, false)
 }
 
 func appendRequestCookieBytes(dst []byte, cookies []argsKV) []byte {
 	for i, n := 0, len(cookies); i < n; i++ {
 		kv := &cookies[i]
 		if len(kv.key) > 0 {
-			dst = AppendQuotedArg(dst, kv.key)
+			dst = append(dst, kv.key...)
 			dst = append(dst, '=')
 		}
-		dst = AppendQuotedArg(dst, kv.value)
+		dst = append(dst, kv.value...)
+		if i+1 < n {
+			dst = append(dst, ';', ' ')
+		}
+	}
+	return dst
+}
+
+// For Response we can not use the above function as response cookies
+// already contain the key= in the value.
+func appendResponseCookieBytes(dst []byte, cookies []argsKV) []byte {
+	for i, n := 0, len(cookies); i < n; i++ {
+		kv := &cookies[i]
+		dst = append(dst, kv.value...)
 		if i+1 < n {
 			dst = append(dst, ';', ' ')
 		}
@@ -334,7 +480,7 @@ func parseRequestCookies(cookies []argsKV, src []byte) []argsKV {
 	s.b = src
 	var kv *argsKV
 	cookies, kv = allocArg(cookies)
-	for s.next(kv, true) {
+	for s.next(kv) {
 		if len(kv.key) > 0 || len(kv.value) > 0 {
 			cookies, kv = allocArg(cookies)
 		}
@@ -346,7 +492,7 @@ type cookieScanner struct {
 	b []byte
 }
 
-func (s *cookieScanner) next(kv *argsKV, decode bool) bool {
+func (s *cookieScanner) next(kv *argsKV) bool {
 	b := s.b
 	if len(b) == 0 {
 		return false
@@ -359,14 +505,14 @@ func (s *cookieScanner) next(kv *argsKV, decode bool) bool {
 		case '=':
 			if isKey {
 				isKey = false
-				kv.key = decodeCookieArg(kv.key, b[:i], decode)
+				kv.key = decodeCookieArg(kv.key, b[:i], false)
 				k = i + 1
 			}
 		case ';':
 			if isKey {
 				kv.key = kv.key[:0]
 			}
-			kv.value = decodeCookieArg(kv.value, b[k:i], decode)
+			kv.value = decodeCookieArg(kv.value, b[k:i], true)
 			s.b = b[i+1:]
 			return true
 		}
@@ -375,20 +521,36 @@ func (s *cookieScanner) next(kv *argsKV, decode bool) bool {
 	if isKey {
 		kv.key = kv.key[:0]
 	}
-	kv.value = decodeCookieArg(kv.value, b[k:], decode)
+	kv.value = decodeCookieArg(kv.value, b[k:], true)
 	s.b = b[len(b):]
 	return true
 }
 
-func decodeCookieArg(dst, src []byte, decode bool) []byte {
+func decodeCookieArg(dst, src []byte, skipQuotes bool) []byte {
 	for len(src) > 0 && src[0] == ' ' {
 		src = src[1:]
 	}
 	for len(src) > 0 && src[len(src)-1] == ' ' {
 		src = src[:len(src)-1]
 	}
-	if !decode {
-		return append(dst[:0], src...)
+	if skipQuotes {
+		if len(src) > 1 && src[0] == '"' && src[len(src)-1] == '"' {
+			src = src[1 : len(src)-1]
+		}
 	}
-	return decodeArg(dst, src, true)
+	return append(dst[:0], src...)
+}
+
+// caseInsensitiveCompare does a case insensitive equality comparison of
+// two []byte. Assumes only letters need to be matched.
+func caseInsensitiveCompare(a, b []byte) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := 0; i < len(a); i++ {
+		if a[i]|0x20 != b[i]|0x20 {
+			return false
+		}
+	}
+	return true
 }

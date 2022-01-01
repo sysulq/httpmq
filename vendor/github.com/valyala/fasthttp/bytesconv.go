@@ -1,3 +1,5 @@
+//go:generate go run bytesconv_table_gen.go
+
 package fasthttp
 
 import (
@@ -8,6 +10,8 @@ import (
 	"io"
 	"math"
 	"net"
+	"reflect"
+	"strings"
 	"sync"
 	"time"
 	"unsafe"
@@ -15,6 +19,16 @@ import (
 
 // AppendHTMLEscape appends html-escaped s to dst and returns the extended dst.
 func AppendHTMLEscape(dst []byte, s string) []byte {
+	if strings.IndexByte(s, '<') < 0 &&
+		strings.IndexByte(s, '>') < 0 &&
+		strings.IndexByte(s, '"') < 0 &&
+		strings.IndexByte(s, '\'') < 0 {
+
+		// fast path - nothing to escape
+		return append(dst, s...)
+	}
+
+	// slow path
 	var prev int
 	var sub string
 	for i, n := 0, len(s); i < n; i++ {
@@ -60,8 +74,13 @@ func AppendIPv4(dst []byte, ip net.IP) []byte {
 	return dst
 }
 
+var errEmptyIPStr = errors.New("empty ip address string")
+
 // ParseIPv4 parses ip address from ipStr into dst and returns the extended dst.
 func ParseIPv4(dst net.IP, ipStr []byte) (net.IP, error) {
+	if len(ipStr) == 0 {
+		return dst, errEmptyIPStr
+	}
 	if len(dst) < net.IPv4len {
 		dst = make([]byte, net.IPv4len)
 	}
@@ -147,7 +166,7 @@ func ParseUint(buf []byte) (int, error) {
 var (
 	errEmptyInt               = errors.New("empty integer")
 	errUnexpectedFirstChar    = errors.New("unexpected first char found. Expecting 0-9")
-	errUnexpectedTrailingChar = errors.New("unexpected traling char found. Expecting 0-9")
+	errUnexpectedTrailingChar = errors.New("unexpected trailing char found. Expecting 0-9")
 	errTooLongInt             = errors.New("too long int")
 )
 
@@ -166,10 +185,12 @@ func parseUintBuf(b []byte) (int, int, error) {
 			}
 			return v, i, nil
 		}
-		if i >= maxIntChars {
+		vNew := 10*v + int(k)
+		// Test for overflow.
+		if vNew < v {
 			return -1, i, errTooLongInt
 		}
-		v = 10*v + int(k)
+		v = vNew
 	}
 	return v, n, nil
 }
@@ -248,12 +269,14 @@ func readHexInt(r *bufio.Reader) (int, error) {
 			}
 			return -1, err
 		}
-		k = hexbyte2int(c)
-		if k < 0 {
+		k = int(hex2intTable[c])
+		if k == 16 {
 			if i == 0 {
 				return -1, errEmptyHexNum
 			}
-			r.UnreadByte()
+			if err := r.UnreadByte(); err != nil {
+				return -1, err
+			}
 			return n, nil
 		}
 		if i >= maxHexIntChars {
@@ -278,7 +301,7 @@ func writeHexInt(w *bufio.Writer, n int) error {
 	buf := v.([]byte)
 	i := len(buf) - 1
 	for {
-		buf[i] = int2hexbyte(n & 0xf)
+		buf[i] = lowerhex[n&0xf]
 		n >>= 4
 		if n == 0 {
 			break
@@ -290,59 +313,15 @@ func writeHexInt(w *bufio.Writer, n int) error {
 	return err
 }
 
-func int2hexbyte(n int) byte {
-	if n < 10 {
-		return '0' + byte(n)
-	}
-	return 'a' + byte(n) - 10
-}
-
-func hexCharUpper(c byte) byte {
-	if c < 10 {
-		return '0' + c
-	}
-	return c - 10 + 'A'
-}
-
-var hex2intTable = func() []byte {
-	b := make([]byte, 255)
-	for i := byte(0); i < 255; i++ {
-		c := byte(0)
-		if i >= '0' && i <= '9' {
-			c = 1 + i - '0'
-		} else if i >= 'a' && i <= 'f' {
-			c = 1 + i - 'a' + 10
-		} else if i >= 'A' && i <= 'F' {
-			c = 1 + i - 'A' + 10
-		}
-		b[i] = c
-	}
-	return b
-}()
-
-func hexbyte2int(c byte) int {
-	return int(hex2intTable[c]) - 1
-}
-
-const toLower = 'a' - 'A'
-
-func uppercaseByte(p *byte) {
-	c := *p
-	if c >= 'a' && c <= 'z' {
-		*p = c - toLower
-	}
-}
-
-func lowercaseByte(p *byte) {
-	c := *p
-	if c >= 'A' && c <= 'Z' {
-		*p = c + toLower
-	}
-}
+const (
+	upperhex = "0123456789ABCDEF"
+	lowerhex = "0123456789abcdef"
+)
 
 func lowercaseBytes(b []byte) {
-	for i, n := 0, len(b); i < n; i++ {
-		lowercaseByte(&b[i])
+	for i := 0; i < len(b); i++ {
+		p := &b[i]
+		*p = toLowerTable[*p]
 	}
 }
 
@@ -352,51 +331,59 @@ func lowercaseBytes(b []byte) {
 // Note it may break if string and/or slice header will change
 // in the future go versions.
 func b2s(b []byte) string {
+	/* #nosec G103 */
 	return *(*string)(unsafe.Pointer(&b))
+}
+
+// s2b converts string to a byte slice without memory allocation.
+//
+// Note it may break if string and/or slice header will change
+// in the future go versions.
+func s2b(s string) (b []byte) {
+	/* #nosec G103 */
+	bh := (*reflect.SliceHeader)(unsafe.Pointer(&b))
+	/* #nosec G103 */
+	sh := (*reflect.StringHeader)(unsafe.Pointer(&s))
+	bh.Data = sh.Data
+	bh.Cap = sh.Len
+	bh.Len = sh.Len
+	return b
+}
+
+// AppendUnquotedArg appends url-decoded src to dst and returns appended dst.
+//
+// dst may point to src. In this case src will be overwritten.
+func AppendUnquotedArg(dst, src []byte) []byte {
+	return decodeArgAppend(dst, src)
 }
 
 // AppendQuotedArg appends url-encoded src to dst and returns appended dst.
 func AppendQuotedArg(dst, src []byte) []byte {
 	for _, c := range src {
-		// See http://www.w3.org/TR/html5/forms.html#form-submission-algorithm
-		if c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' ||
-			c == '*' || c == '-' || c == '.' || c == '_' {
+		switch {
+		case c == ' ':
+			dst = append(dst, '+')
+		case quotedArgShouldEscapeTable[int(c)] != 0:
+			dst = append(dst, '%', upperhex[c>>4], upperhex[c&0xf])
+		default:
 			dst = append(dst, c)
-		} else {
-			dst = append(dst, '%', hexCharUpper(c>>4), hexCharUpper(c&15))
 		}
 	}
 	return dst
 }
 
 func appendQuotedPath(dst, src []byte) []byte {
+	// Fix issue in https://github.com/golang/go/issues/11202
+	if len(src) == 1 && src[0] == '*' {
+		return append(dst, '*')
+	}
+
 	for _, c := range src {
-		if c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' ||
-			c == '/' || c == '.' || c == ',' || c == '=' || c == ':' || c == '&' || c == '~' || c == '-' || c == '_' {
-			dst = append(dst, c)
+		if quotedPathShouldEscapeTable[int(c)] != 0 {
+			dst = append(dst, '%', upperhex[c>>4], upperhex[c&15])
 		} else {
-			dst = append(dst, '%', hexCharUpper(c>>4), hexCharUpper(c&15))
+			dst = append(dst, c)
 		}
 	}
 	return dst
-}
-
-// EqualBytesStr returns true if string(b) == s.
-//
-// This function has no performance benefits comparing to string(b) == s.
-// It is left here for backwards compatibility only.
-//
-// This function is deperecated and may be deleted soon.
-func EqualBytesStr(b []byte, s string) bool {
-	return string(b) == s
-}
-
-// AppendBytesStr appends src to dst and returns the extended dst.
-//
-// This function has no performance benefits comparing to append(dst, src...).
-// It is left here for backwards compatibility only.
-//
-// This function is deprecated and may be deleted soon.
-func AppendBytesStr(dst []byte, src string) []byte {
-	return append(dst, src...)
 }
