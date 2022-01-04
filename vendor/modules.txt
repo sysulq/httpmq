@@ -5,8 +5,8 @@ github.com/golang/snappy
 ## explicit; go 1.16
 # github.com/onsi/gomega v1.17.0
 ## explicit; go 1.16
-# github.com/syndtr/goleveldb v1.0.0
-## explicit
+# github.com/syndtr/goleveldb v0.0.0-20210819022825-2ae1ddf74ef7
+## explicit; go 1.14
 github.com/syndtr/goleveldb/leveldb
 github.com/syndtr/goleveldb/leveldb/cache
 github.com/syndtr/goleveldb/leveldb/comparer

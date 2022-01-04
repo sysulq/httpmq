@@ -121,11 +121,11 @@ wrk -c 10 -t 2 -d 10s "http://127.0.0.1:1218/?name=xoyo&opt=put&data=aaaaaaaaaaa
 Running 10s test @ http://127.0.0.1:1218/?name=xoyo&opt=put&data=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
   2 threads and 10 connections
   Thread Stats   Avg      Stdev     Max   +/- Stdev
-    Latency   226.11us  310.53us   9.80ms   98.21%
-    Req/Sec    24.63k     2.48k   27.74k    83.17%
-  495156 requests in 10.10s, 83.58MB read
-Requests/sec:  49017.18
-Transfer/sec:      8.27MB
+    Latency   211.87us  169.58us   4.97ms   98.28%
+    Req/Sec    24.36k     2.23k   27.87k    64.36%
+  489524 requests in 10.10s, 82.64MB read
+Requests/sec:  48459.16
+Transfer/sec:      8.18MB
 ```
 
 ### GET queue:
@@ -135,9 +135,9 @@ wrk -c 10 -t 2 -d 10s "http://127.0.0.1:1218/?name=xoyo&opt=get"
 Running 10s test @ http://127.0.0.1:1218/?name=xoyo&opt=get
   2 threads and 10 connections
   Thread Stats   Avg      Stdev     Max   +/- Stdev
-    Latency   244.25us  212.87us  10.21ms   98.73%
-    Req/Sec    20.62k     1.02k   23.93k    84.65%
-  414469 requests in 10.10s, 267.49MB read
-Requests/sec:  41038.90
-Transfer/sec:     26.49MB
+    Latency   218.26us  251.84us  11.56ms   99.22%
+    Req/Sec    23.37k     1.06k   24.70k    90.59%
+  469685 requests in 10.10s, 303.14MB read
+Requests/sec:  46504.02
+Transfer/sec:     30.01MB
 ```
