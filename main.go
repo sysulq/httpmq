@@ -20,7 +20,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"math"
 	"net/http"
@@ -37,9 +37,8 @@ import (
 const VERSION = "0.5"
 
 var db *leveldb.DB
-var defaultMaxqueue, keepalive, cpu, cacheSize, writeBuffer *int
+var defaultMaxqueue, cpu, cacheSize, writeBuffer *int
 var ip, port, defaultAuth, dbPath *string
-var verbose *bool
 
 // httpmq read metadata api
 // retrieve from leveldb
@@ -80,7 +79,7 @@ func httpmqNowGetpos(name string) string {
 	}
 
 	data := strconv.Itoa(getpos)
-	db.Put([]byte(name+".getpos"), []byte(data), nil)
+	_ = db.Put([]byte(name+".getpos"), []byte(data), nil)
 	return data
 }
 
@@ -103,7 +102,7 @@ func httpmqNowPutpos(name string) string {
 		metadata[1] = strconv.Itoa(putpos)
 	}
 
-	db.Put([]byte(name+".putpos"), []byte(metadata[1]), nil)
+	_ = db.Put([]byte(name+".putpos"), []byte(metadata[1]), nil)
 
 	return metadata[1]
 }
@@ -117,7 +116,6 @@ func init() {
 	cacheSize = flag.Int("cache", 64, "cache size(MB)")
 	writeBuffer = flag.Int("buffer", 32, "write buffer(MB)")
 	cpu = flag.Int("cpu", runtime.NumCPU(), "cpu number for httpmq")
-	keepalive = flag.Int("k", 60, "keepalive timeout for httpmq")
 	flag.Parse()
 
 	var err error
@@ -170,7 +168,7 @@ func (*app) run() {
 		charset := string(r.FormValue("charset"))
 
 		if *defaultAuth != "" && *defaultAuth != auth {
-			rw.Write([]byte("HTTPMQ_AUTH_FAILED"))
+			_, _ = rw.Write([]byte("HTTPMQ_AUTH_FAILED"))
 			return
 		}
 
@@ -181,13 +179,13 @@ func (*app) run() {
 			if string(r.Header.Get("Content-Type")) == "application/x-www-form-urlencoded" {
 				data = string(r.FormValue("data"))
 			} else {
-				buf, _ = ioutil.ReadAll(r.Body)
+				buf, _ = io.ReadAll(r.Body)
 				defer r.Body.Close()
 			}
 		}
 
 		if len(name) == 0 || len(opt) == 0 {
-			rw.Write([]byte("HTTPMQ_ERROR"))
+			_, _ = rw.Write([]byte("HTTPMQ_ERROR"))
 			return
 		}
 
@@ -200,7 +198,7 @@ func (*app) run() {
 
 		if opt == "put" {
 			if len(data) == 0 && len(buf) == 0 {
-				rw.Write([]byte("HTTPMQ_PUT_ERROR"))
+				_, _ = rw.Write([]byte("HTTPMQ_PUT_ERROR"))
 				return
 			}
 
@@ -210,29 +208,29 @@ func (*app) run() {
 			if putpos != "0" {
 				queueName := name + putpos
 				if data != "" {
-					db.Put([]byte(queueName), []byte(data), nil)
+					_ = db.Put([]byte(queueName), []byte(data), nil)
 				} else if len(buf) > 0 {
-					db.Put([]byte(queueName), buf, nil)
+					_ = db.Put([]byte(queueName), buf, nil)
 				}
 				rw.Header().Set("Pos", putpos)
-				rw.Write([]byte("HTTPMQ_PUT_OK"))
+				_, _ = rw.Write([]byte("HTTPMQ_PUT_OK"))
 			} else {
-				rw.Write([]byte("HTTPMQ_PUT_END"))
+				_, _ = rw.Write([]byte("HTTPMQ_PUT_END"))
 			}
 		} else if opt == "get" {
 			getnamechan <- name
 			getpos := <-getposchan
 
 			if getpos == "0" {
-				rw.Write([]byte("HTTPMQ_GET_END"))
+				_, _ = rw.Write([]byte("HTTPMQ_GET_END"))
 			} else {
 				queueName := name + getpos
 				v, err := db.Get([]byte(queueName), nil)
 				if err == nil {
 					rw.Header().Set("Pos", getpos)
-					rw.Write(v)
+					_, _ = rw.Write(v)
 				} else {
-					rw.Write([]byte("HTTPMQ_GET_ERROR"))
+					_, _ = rw.Write([]byte("HTTPMQ_GET_ERROR"))
 				}
 			}
 		} else if opt == "status" {
@@ -254,34 +252,34 @@ func (*app) run() {
 			}
 
 			buf := fmt.Sprintf("HTTP Simple Queue Service v%s\n", VERSION)
-			buf += fmt.Sprintf("------------------------------\n")
+			buf += "------------------------------\n"
 			buf += fmt.Sprintf("Queue Name: %s\n", name)
 			buf += fmt.Sprintf("Maximum number of queues: %d\n", maxqueue)
 			buf += fmt.Sprintf("Put position of queue (%s): %d\n", putTimes, putpos)
 			buf += fmt.Sprintf("Get position of queue (%s): %d\n", getTimes, getpos)
 			buf += fmt.Sprintf("Number of unread queue: %g\n\n", ungetnum)
 
-			rw.Write([]byte(buf))
+			_, _ = rw.Write([]byte(buf))
 		} else if opt == "view" {
 			v, err := db.Get([]byte(name+pos), nil)
 			if err == nil {
-				rw.Write([]byte(v))
+				_, _ = rw.Write([]byte(v))
 			} else {
-				rw.Write([]byte("HTTPMQ_VIEW_ERROR"))
+				_, _ = rw.Write([]byte("HTTPMQ_VIEW_ERROR"))
 			}
 		} else if opt == "reset" {
 			maxqueue := strconv.Itoa(*defaultMaxqueue)
-			db.Put([]byte(name+".maxqueue"), []byte(maxqueue), sync)
-			db.Put([]byte(name+".putpos"), []byte("0"), sync)
-			db.Put([]byte(name+".getpos"), []byte("0"), sync)
-			rw.Write([]byte("HTTPMQ_RESET_OK"))
+			_ = db.Put([]byte(name+".maxqueue"), []byte(maxqueue), sync)
+			_ = db.Put([]byte(name+".putpos"), []byte("0"), sync)
+			_ = db.Put([]byte(name+".getpos"), []byte("0"), sync)
+			_, _ = rw.Write([]byte("HTTPMQ_RESET_OK"))
 		} else if opt == "maxqueue" {
 			maxqueue, _ := strconv.Atoi(num)
 			if maxqueue > 0 && maxqueue <= 10000000 {
-				db.Put([]byte(name+".maxqueue"), []byte(num), sync)
-				rw.Write([]byte("HTTPMQ_MAXQUEUE_OK"))
+				_ = db.Put([]byte(name+".maxqueue"), []byte(num), sync)
+				_, _ = rw.Write([]byte("HTTPMQ_MAXQUEUE_OK"))
 			} else {
-				rw.Write([]byte("HTTPMQ_MAXQUEUE_CANCLE"))
+				_, _ = rw.Write([]byte("HTTPMQ_MAXQUEUE_CANCLE"))
 			}
 		}
 	})
@@ -292,7 +290,7 @@ func (*app) run() {
 //go:generate go run github.com/go-kod/kod/cmd/kod generate
 
 func main() {
-	kod.Run(context.Background(), func(ctx context.Context, app *app) error {
+	_ = kod.Run(context.Background(), func(ctx context.Context, app *app) error {
 		app.run()
 		return nil
 	})
