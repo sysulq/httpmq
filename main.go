@@ -17,6 +17,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -27,6 +28,7 @@ import (
 	"runtime"
 	"strconv"
 
+	"github.com/go-kod/kod"
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/opt"
 )
@@ -126,7 +128,11 @@ func init() {
 	}
 }
 
-func main() {
+type app struct {
+	kod.Implements[kod.Main]
+}
+
+func (*app) run() {
 	runtime.GOMAXPROCS(*cpu)
 
 	sync := &opt.WriteOptions{Sync: true}
@@ -281,4 +287,13 @@ func main() {
 	})
 
 	log.Fatal(http.ListenAndServe(*ip+":"+*port, m))
+}
+
+//go:generate go run github.com/go-kod/kod/cmd/kod generate
+
+func main() {
+	kod.Run(context.Background(), func(ctx context.Context, app *app) error {
+		app.run()
+		return nil
+	})
 }
