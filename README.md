@@ -4,6 +4,9 @@ httpmq
 [![Docker Pulls](https://img.shields.io/docker/pulls/sophos/httpmq.svg)](https://hub.docker.com/r/sophos/httpmq/)
 [![Go Report Card](https://goreportcard.com/badge/github.com/hnlq715/httpmq)](https://goreportcard.com/report/github.com/hnlq715/httpmq)
 
+> httpmq is powered by [Kod](https://github.com/go-kod/kod), which is a dependency injection framework for Go.  
+> It is designed to be simple and easy to use, and to provide a consistent way to manage dependencies across your application.
+
 Httpmq is a simple HTTP message queue written in Go with goleveldb, just like httpsqs wriiten in C with Tokyo Cabinet.
 
 Also, you can refer to [github.com/hnlq715/httpmq-rs#benchmark](https://github.com/hnlq715/httpmq-rs#benchmark) for the benchmark of **Rust** implementation.
