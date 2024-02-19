@@ -1,4 +1,4 @@
-module httpmq
+module github.com/sysulq/httpmq
 
 go 1.21.0
 
