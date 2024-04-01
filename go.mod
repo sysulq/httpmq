@@ -1,11 +1,11 @@
 module github.com/sysulq/httpmq
 
 go 1.21.0
-
-toolchain go1.21.3
+toolchain go1.22.1
 
 require (
-	github.com/go-kod/kod v0.4.0
+	github.com/go-kod/kod v0.5.0
+	github.com/go-kod/kod/interceptor v0.5.0
 	github.com/syndtr/goleveldb v0.0.0-20210819022825-2ae1ddf74ef7
 )
 

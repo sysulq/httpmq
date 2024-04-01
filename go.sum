@@ -11,8 +11,10 @@ github.com/fsnotify/fsnotify v1.4.7/go.mod h1:jwhsz4b93w/PPRr/qN1Yymfu8t87LnFCMo
 github.com/fsnotify/fsnotify v1.4.9/go.mod h1:znqG4EE+3YCdAaPaxE2ZRY/06pZUdp0tY4IgpuI1SZQ=
 github.com/fsnotify/fsnotify v1.7.0 h1:8JEhPFa5W2WU7YfeZzPNqzMP6Lwt7L2715Ggo0nosvA=
 github.com/fsnotify/fsnotify v1.7.0/go.mod h1:40Bi/Hjc2AVfZrqy+aj+yEI+/bRxZnMJyTJwOpGvigM=
-github.com/go-kod/kod v0.4.0 h1:f5mXC6m06HSDM7KZrCSXJ/JpAMI5xQjSylzhZanFSgQ=
-github.com/go-kod/kod v0.4.0/go.mod h1:Vjk8tXA8pygvHsa8iVFIzclb7xLFj7mrPQUyZJuxJAs=
+github.com/go-kod/kod v0.5.0 h1:6R0SfBu2omtN+faroVnnb07CrKFEnRkHinluoY+++Zg=
+github.com/go-kod/kod v0.5.0/go.mod h1:W+aIdVrRsG3lQRt/2jTfTd4uOyjyzzeIfzhpDAppPHY=
+github.com/go-kod/kod/interceptor v0.5.0 h1:z6htNgeUe2KSjGdYN+kkKxP53qEDh7z9JVqyscGsKVU=
+github.com/go-kod/kod/interceptor v0.5.0/go.mod h1:S6wHlyldLt2vERYxHtvIRgg+M8SnRRYsoiX49EimylQ=
 github.com/go-logr/logr v1.4.1 h1:pKouT5E8xu9zeFC39JXRDukb6JFQPXM5p5I91188VAQ=
 github.com/go-logr/logr v1.4.1/go.mod h1:9T104GzyrTigFIr8wt5mBrctHMim0Nb2HLGrmQ40KvY=
 github.com/go-logr/stdr v1.2.2 h1:hSWxHoqTgW2S2qGc0LTAI563KZ5YKYRhT3MFKZMbjag=
