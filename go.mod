@@ -1,6 +1,7 @@
 module github.com/sysulq/httpmq
 
-go 1.21.0
+go 1.21.7
+
 toolchain go1.22.4
 
 require (
