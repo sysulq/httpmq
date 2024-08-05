@@ -5,7 +5,7 @@ go 1.21.7
 toolchain go1.22.4
 
 require (
-	github.com/go-kod/kod v0.12.0
+	github.com/go-kod/kod v0.13.0
 	github.com/syndtr/goleveldb v0.0.0-20210819022825-2ae1ddf74ef7
 )
 
